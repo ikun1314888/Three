@@ -222,30 +222,44 @@ button {
   color: var(--text-secondary);
 }
 
-.stats-card {
+.popover-anchor {
+  position: relative;
+}
+
+.popover {
+  position: absolute;
+  top: calc(100% + 8px);
+  right: 0;
+  z-index: 60;
   display: none;
-  margin-top: 16px;
+  min-width: 250px;
+  max-width: calc(100vw - 24px);
   background-color: var(--bg-surface);
   border: 1px solid var(--border-subtle);
   border-radius: var(--radius-md);
-  padding: 14px 16px;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.10);
+  padding: 12px 14px;
 }
 
-.stats-card.visible {
+.popover.open {
   display: block;
+  animation: popIn 0.15s ease;
 }
 
-.stats-head {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 10px;
-  margin-bottom: 4px;
+@keyframes popIn {
+  from { opacity: 0; transform: translateY(-4px) scale(0.98); }
+  to { opacity: 1; transform: translateY(0) scale(1); }
 }
 
-.stats-title {
+.popover-title {
   font-size: 14px;
   font-weight: 600;
+  margin-bottom: 6px;
+}
+
+.popover-foot {
+  margin-top: 6px;
+  text-align: right;
 }
 
 .btn-sm {
@@ -665,6 +679,16 @@ button {
     <button type="button" id="btnUndo" class="btn-ghost">悔棋</button>
     <button type="button" id="btnNew" class="btn-ghost">新开局</button>
     <button type="button" id="btnRules" class="btn-ghost">规则</button>
+    <div class="popover-anchor">
+      <button type="button" class="btn-ghost" id="btnStats" aria-haspopup="true" aria-expanded="false">战绩</button>
+      <div class="popover" id="statsPopover" role="dialog" aria-label="人机对战战绩">
+        <div class="popover-title">人机战绩</div>
+        <div id="statsBody"></div>
+        <div class="popover-foot">
+          <button type="button" class="btn-ghost btn-sm" id="btnResetStats">重置</button>
+        </div>
+      </div>
+    </div>
   </div>
 </header>
 
@@ -715,13 +739,7 @@ button {
     <div id="board" class="board" role="grid" aria-label="13 乘 13 棋盘"></div>
   </section>
 
-  <section class="stats-card" id="statsCard" aria-label="人机对战战绩">
-    <div class="stats-head">
-      <span class="stats-title">人机战绩</span>
-      <button type="button" class="btn-ghost btn-sm" id="btnResetStats">重置</button>
-    </div>
-    <div id="statsBody"></div>
-  </section>
+
 
   <p class="footer-note">离线单页游戏 · 无网络依赖 · 深浅色自动适配</p>
 </main>
@@ -851,9 +869,10 @@ button {
   var sideBtns = Array.prototype.slice.call(document.querySelectorAll("[data-side]"));
   var diffBtns = Array.prototype.slice.call(document.querySelectorAll("[data-diff]"));
   var pveSettings = document.getElementById("pveSettings");
-  var statsCard = document.getElementById("statsCard");
   var statsBody = document.getElementById("statsBody");
   var btnResetStats = document.getElementById("btnResetStats");
+  var btnStats = document.getElementById("btnStats");
+  var statsPopover = document.getElementById("statsPopover");
 
   function freshState() {
     var board = [];
@@ -1260,7 +1279,6 @@ button {
     statusText.textContent = statusMessage();
     btnUndo.disabled = history.length === 0 || !!state.winner || aiThinking;
     pveSettings.classList.toggle("visible", mode === "pve");
-    statsCard.classList.toggle("visible", mode === "pve");
     setSegState(modeBtns, "data-mode", mode);
     setSegState(sideBtns, "data-side", playerColor);
     setSegState(diffBtns, "data-diff", difficulty);
@@ -1525,6 +1543,8 @@ button {
     if (e.key === "Escape") {
       rulesModal.classList.remove("open");
       endOverlay.classList.remove("open");
+      statsPopover.classList.remove("open");
+      btnStats.setAttribute("aria-expanded", "false");
     }
   });
 
@@ -1533,6 +1553,16 @@ button {
   loadStats();
   renderStats();
   btnResetStats.addEventListener("click", resetStats);
+  btnStats.addEventListener("click", function (e) {
+    e.stopPropagation();
+    var open = statsPopover.classList.toggle("open");
+    btnStats.setAttribute("aria-expanded", open ? "true" : "false");
+  });
+  document.addEventListener("click", function () {
+    statsPopover.classList.remove("open");
+    btnStats.setAttribute("aria-expanded", "false");
+  });
+  statsPopover.addEventListener("click", function (e) { e.stopPropagation(); });
 })();
 </script>
 </body>
