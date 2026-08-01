@@ -1,0 +1,1360 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="description" content="三形连锁棋：13×13 双人对弈，三子连线获胜。离线单页游戏。">
+<title>三形连锁棋</title>
+<style>
+:root {
+  --font-sans: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+
+  --bg-page: #F5F5F7;
+  --bg-surface: #FFFFFF;
+  --bg-soft: rgba(0, 0, 0, 0.04);
+  --text-primary: #1D1D1F;
+  --text-secondary: #86868B;
+  --text-tertiary: #A1A1A6;
+  --border-subtle: rgba(0, 0, 0, 0.08);
+  --accent: #007AFF;
+  --accent-hover: #0062CC;
+  --accent-soft: rgba(0, 122, 255, 0.10);
+  --cell-odd: #FFFFFF;
+  --cell-even: #F2F2F5;
+
+  --radius-sm: 6px;
+  --radius-md: 10px;
+  --radius-lg: 14px;
+  --transition-fast: 0.15s ease;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg-page: #000000;
+    --bg-surface: #1C1C1E;
+    --bg-soft: rgba(255, 255, 255, 0.06);
+    --text-primary: #F5F5F7;
+    --text-secondary: #98989D;
+    --text-tertiary: #6E6E73;
+    --border-subtle: rgba(255, 255, 255, 0.12);
+    --accent: #0A84FF;
+    --accent-hover: #409CFF;
+    --accent-soft: rgba(10, 132, 255, 0.16);
+    --cell-odd: #1E1E20;
+    --cell-even: #26262A;
+  }
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html, body {
+  margin: 0;
+  padding: 0;
+}
+
+body {
+  font-family: var(--font-sans);
+  background-color: var(--bg-page);
+  color: var(--text-primary);
+  -webkit-font-smoothing: antialiased;
+  line-height: 1.5;
+  min-height: 100vh;
+}
+
+button {
+  font-family: var(--font-sans);
+  -webkit-tap-highlight-color: transparent;
+  touch-action: manipulation;
+}
+
+.app-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+  padding: 18px 20px;
+  border-bottom: 1px solid var(--border-subtle);
+  background-color: var(--bg-surface);
+  position: sticky;
+  top: 0;
+  z-index: 20;
+}
+
+.brand h1 {
+  margin: 0;
+  font-size: clamp(20px, 4.5vw, 26px);
+  font-weight: 600;
+  letter-spacing: 0.01em;
+}
+
+.brand p {
+  margin: 2px 0 0;
+  font-size: 13px;
+  color: var(--text-secondary);
+}
+
+.header-actions {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.btn-ghost, .btn-primary {
+  appearance: none;
+  border-radius: var(--radius-sm);
+  font-size: 14px;
+  font-weight: 500;
+  padding: 8px 14px;
+  cursor: pointer;
+  transition: background-color var(--transition-fast), color var(--transition-fast), border-color var(--transition-fast), transform var(--transition-fast);
+  user-select: none;
+}
+
+.btn-ghost {
+  background-color: transparent;
+  color: var(--text-primary);
+  border: 1px solid var(--border-subtle);
+}
+
+.btn-ghost:hover:not(:disabled) {
+  background-color: var(--bg-soft);
+}
+
+.btn-ghost:active:not(:disabled) {
+  transform: scale(0.98);
+}
+
+.btn-ghost:disabled {
+  opacity: 0.4;
+  cursor: default;
+}
+
+.btn-primary {
+  background-color: var(--accent);
+  color: #FFFFFF;
+  border: none;
+}
+
+.btn-primary:hover {
+  background-color: var(--accent-hover);
+}
+
+.btn-primary:active {
+  transform: scale(0.98);
+}
+
+.btn-ghost:focus-visible, .btn-primary:focus-visible, .type-btn:focus-visible, .cell:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+.content {
+  max-width: 780px;
+  margin: 0 auto;
+  padding: 20px 20px 48px;
+}
+
+.game-config {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+  margin-bottom: 14px;
+}
+
+.seg {
+  display: inline-flex;
+  background-color: var(--bg-surface);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-sm);
+  padding: 2px;
+  gap: 2px;
+}
+
+.seg-btn {
+  appearance: none;
+  border: none;
+  background-color: transparent;
+  color: var(--text-secondary);
+  font-size: 13px;
+  font-weight: 500;
+  padding: 6px 12px;
+  border-radius: 4px;
+  cursor: pointer;
+  transition: color var(--transition-fast), background-color var(--transition-fast), transform var(--transition-fast);
+  user-select: none;
+}
+
+.seg-btn:hover {
+  color: var(--text-primary);
+}
+
+.seg-btn:active {
+  transform: scale(0.98);
+}
+
+.seg-btn.selected {
+  background-color: var(--accent);
+  color: #FFFFFF;
+}
+
+.seg-btn:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 1px;
+}
+
+.pve-only {
+  display: none;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.pve-only.visible {
+  display: flex;
+}
+
+.cfg-label {
+  font-size: 13px;
+  color: var(--text-secondary);
+}
+
+.turn-bar {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+  margin-bottom: 14px;
+}
+
+.chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  background-color: var(--bg-surface);
+  border: 1px solid var(--border-subtle);
+  border-radius: 999px;
+  padding: 6px 14px;
+  font-size: 14px;
+  font-weight: 500;
+}
+
+.chip-dot {
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  border: 1px solid var(--border-subtle);
+  flex: none;
+}
+
+.status {
+  margin: 0;
+  font-size: 14px;
+  color: var(--text-secondary);
+}
+
+.selector {
+  background-color: var(--bg-surface);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-md);
+  padding: 14px;
+  margin-bottom: 16px;
+}
+
+.selector-label {
+  display: block;
+  font-size: 13px;
+  color: var(--text-secondary);
+  margin-bottom: 10px;
+}
+
+.selector-group {
+  display: flex;
+  gap: 10px;
+}
+
+.type-btn {
+  appearance: none;
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  min-height: 64px;
+  background-color: transparent;
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-sm);
+  color: var(--text-primary);
+  font-size: 13px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: border-color var(--transition-fast), background-color var(--transition-fast), color var(--transition-fast), transform var(--transition-fast);
+  user-select: none;
+}
+
+.type-btn svg {
+  width: 24px;
+  height: 24px;
+  color: var(--text-secondary);
+  transition: color var(--transition-fast);
+}
+
+.type-btn:hover:not(:disabled) {
+  background-color: var(--bg-soft);
+}
+
+.type-btn:active:not(:disabled) {
+  transform: scale(0.98);
+}
+
+.type-btn.selected {
+  border-color: var(--accent);
+  background-color: var(--accent-soft);
+}
+
+.type-btn.selected svg {
+  color: var(--accent);
+}
+
+.type-btn:disabled {
+  opacity: 0.45;
+  cursor: default;
+}
+
+.board-wrap {
+  width: min(92vw, 580px);
+  margin: 0 auto;
+}
+
+.board {
+  display: grid;
+  grid-template-columns: repeat(13, 1fr);
+  grid-template-rows: repeat(13, 1fr);
+  aspect-ratio: 1 / 1;
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-md);
+  overflow: hidden;
+  background-color: var(--cell-odd);
+  user-select: none;
+  -webkit-user-select: none;
+  touch-action: manipulation;
+}
+
+.cell {
+  appearance: none;
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  margin: 0;
+  background-color: var(--cell-odd);
+  border: none;
+  border-right: 1px solid var(--border-subtle);
+  border-bottom: 1px solid var(--border-subtle);
+  cursor: default;
+  transition: background-color var(--transition-fast), box-shadow var(--transition-fast), transform var(--transition-fast);
+}
+
+.cell.even {
+  background-color: var(--cell-even);
+}
+
+.cell svg {
+  width: 66%;
+  height: 66%;
+  display: block;
+}
+
+.cell.last svg .piece-shape {
+  animation: piecePop 0.18s ease;
+}
+
+@keyframes piecePop {
+  from { transform: scale(0.55); opacity: 0.4; }
+  to { transform: scale(1); opacity: 1; }
+}
+
+.cell.legal {
+  cursor: pointer;
+}
+
+.cell.legal:hover {
+  background-color: var(--accent-soft);
+}
+
+.cell.legal:active {
+  transform: scale(0.96);
+}
+
+.cell.legal::after {
+  content: "";
+  position: absolute;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background-color: var(--accent);
+  opacity: 0.9;
+  pointer-events: none;
+}
+
+.cell.last {
+  box-shadow: inset 0 0 0 2px var(--accent);
+}
+
+.footer-note {
+  margin-top: 28px;
+  text-align: center;
+  font-size: 12px;
+  color: var(--text-tertiary);
+}
+
+.overlay {
+  position: fixed;
+  inset: 0;
+  background-color: rgba(0, 0, 0, 0.35);
+  display: none;
+  align-items: center;
+  justify-content: center;
+  z-index: 100;
+  padding: 16px;
+}
+
+.overlay.open {
+  display: flex;
+}
+
+.modal-card {
+  background-color: var(--bg-surface);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-lg);
+  box-shadow: 0 12px 40px rgba(0, 0, 0, 0.12);
+  width: 100%;
+  max-width: 560px;
+  max-height: 84vh;
+  overflow-y: auto;
+  padding: 22px 24px 24px;
+  -webkit-overflow-scrolling: touch;
+}
+
+.modal-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 10px;
+}
+
+.modal-head h2 {
+  margin: 0;
+  font-size: 18px;
+  font-weight: 600;
+}
+
+.rules-section {
+  margin-top: 16px;
+}
+
+.rules-section h3 {
+  margin: 0 0 6px;
+  font-size: 15px;
+  font-weight: 600;
+}
+
+.rules-section p, .rules-section li {
+  margin: 0;
+  font-size: 14px;
+  color: var(--text-primary);
+}
+
+.rules-section ul, .rules-section ol {
+  margin: 6px 0 0;
+  padding-left: 20px;
+}
+
+.rules-section li + li {
+  margin-top: 4px;
+}
+
+.rules-table {
+  width: 100%;
+  border-collapse: collapse;
+  margin-top: 8px;
+  font-size: 14px;
+}
+
+.rules-table th, .rules-table td {
+  border: 1px solid var(--border-subtle);
+  padding: 8px 10px;
+  text-align: left;
+  vertical-align: top;
+}
+
+.rules-table th {
+  font-weight: 600;
+  background-color: var(--bg-soft);
+}
+
+.mini-icon {
+  display: inline-block;
+  vertical-align: -4px;
+  width: 18px;
+  height: 18px;
+  margin-right: 6px;
+}
+
+.mini-icon svg {
+  width: 100%;
+  height: 100%;
+}
+
+.note {
+  font-size: 13px;
+  color: var(--text-secondary);
+  margin-top: 8px;
+}
+
+.end-card {
+  text-align: center;
+  max-width: 380px;
+}
+
+.end-card h2 {
+  margin: 4px 0 4px;
+  font-size: 22px;
+  font-weight: 600;
+}
+
+.end-card p {
+  margin: 0 0 18px;
+  font-size: 14px;
+  color: var(--text-secondary);
+}
+
+.end-actions {
+  display: flex;
+  justify-content: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+@media (max-width: 640px) {
+  .app-header {
+    padding: 14px 16px;
+  }
+
+  .content {
+    padding: 16px 14px 40px;
+  }
+
+  .game-config {
+    gap: 8px;
+  }
+
+  .seg-btn {
+    padding: 8px 10px;
+    font-size: 12px;
+  }
+
+  .header-actions .btn-ghost {
+    padding: 7px 12px;
+    font-size: 13px;
+  }
+
+  .type-btn {
+    min-height: 72px;
+  }
+
+  .modal-card {
+    max-width: 100%;
+    height: 100%;
+    max-height: 100%;
+    border-radius: 0;
+    padding: 20px 18px 28px;
+  }
+}
+</style>
+</head>
+<body>
+
+<header class="app-header">
+  <div class="brand">
+    <h1>三形连锁棋</h1>
+    <p>13 × 13 双人对弈 · 三子连线获胜</p>
+  </div>
+  <div class="header-actions">
+    <button type="button" id="btnUndo" class="btn-ghost">悔棋</button>
+    <button type="button" id="btnNew" class="btn-ghost">新开局</button>
+    <button type="button" id="btnRules" class="btn-ghost">规则</button>
+  </div>
+</header>
+
+<main class="content">
+  <div class="game-config">
+    <div class="seg" role="group" aria-label="对局模式">
+      <button type="button" class="seg-btn selected" data-mode="pvp" aria-pressed="true">双人对战</button>
+      <button type="button" class="seg-btn" data-mode="pve" aria-pressed="false">人机对战</button>
+    </div>
+    <div class="pve-only" id="pveSettings">
+      <span class="cfg-label">执子</span>
+      <div class="seg" role="group" aria-label="执子方">
+        <button type="button" class="seg-btn selected" data-side="black" aria-pressed="true">执黑先手</button>
+        <button type="button" class="seg-btn" data-side="white" aria-pressed="false">执白后手</button>
+      </div>
+      <span class="cfg-label">难度</span>
+      <div class="seg" role="group" aria-label="AI 难度">
+        <button type="button" class="seg-btn" data-diff="easy" aria-pressed="false">简单</button>
+        <button type="button" class="seg-btn selected" data-diff="medium" aria-pressed="true">中等</button>
+        <button type="button" class="seg-btn" data-diff="hard" aria-pressed="false">困难</button>
+      </div>
+    </div>
+  </div>
+  <div class="turn-bar">
+    <span class="chip" aria-hidden="true">
+      <span class="chip-dot" id="chipDot"></span>
+      <span id="chipLabel">黑方回合</span>
+    </span>
+    <p class="status" id="statusText" aria-live="polite">请选择棋子类型</p>
+  </div>
+
+  <section class="selector" aria-label="棋子类型选择">
+    <span class="selector-label">本回合请先选择一种棋子</span>
+    <div class="selector-group">
+      <button type="button" class="type-btn" data-type="square" aria-pressed="false">
+        <span class="type-icon"></span><span>方形</span>
+      </button>
+      <button type="button" class="type-btn" data-type="circle" aria-pressed="false">
+        <span class="type-icon"></span><span>圆形</span>
+      </button>
+      <button type="button" class="type-btn" data-type="triangle" aria-pressed="false">
+        <span class="type-icon"></span><span>三角形</span>
+      </button>
+    </div>
+  </section>
+
+  <section class="board-wrap" aria-label="棋盘">
+    <div id="board" class="board" role="grid" aria-label="13 乘 13 棋盘"></div>
+  </section>
+
+  <p class="footer-note">离线单页游戏 · 无网络依赖 · 深浅色自动适配</p>
+</main>
+
+<!-- 规则面板 -->
+<div id="rulesModal" class="overlay" role="dialog" aria-modal="true" aria-labelledby="rulesTitle">
+  <div class="modal-card">
+    <div class="modal-head">
+      <h2 id="rulesTitle">游戏规则</h2>
+      <button type="button" class="btn-ghost" data-close>关闭</button>
+    </div>
+
+    <section class="rules-section">
+      <h3>游戏目标</h3>
+      <p>双方轮流落子，率先让己方 3 枚棋子在横向、纵向或任一斜向连续相连的一方获胜。</p>
+    </section>
+
+    <section class="rules-section">
+      <h3>回合流程</h3>
+      <ol>
+        <li>当前玩家从三种棋子中选择一种。</li>
+        <li>将所选棋子落在一个合法空格上（高亮格）。</li>
+        <li>该棋子的类型决定对手下一回合的合法落点范围。</li>
+        <li>轮到对手行动。</li>
+      </ol>
+    </section>
+
+    <section class="rules-section">
+      <h3>棋子与落点限制</h3>
+      <table class="rules-table">
+        <thead>
+          <tr><th>本手棋子</th><th>对手下一手可落位置</th></tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td><span class="mini-icon"><svg viewBox="0 0 32 32" aria-hidden="true"><g fill="currentColor"><rect x="6.5" y="6.5" width="19" height="19" rx="3"/></g></svg></span>方形</td>
+            <td>左上 / 右上 / 左下 / 右下（四个对角）</td>
+          </tr>
+          <tr>
+            <td><span class="mini-icon"><svg viewBox="0 0 32 32" aria-hidden="true"><g fill="currentColor"><circle cx="16" cy="16" r="9.5"/></g></svg></span>圆形</td>
+            <td>上 / 下 / 左 / 右（上下左右）</td>
+          </tr>
+          <tr>
+            <td><span class="mini-icon"><svg viewBox="0 0 32 32" aria-hidden="true"><g fill="currentColor"><path d="M16 6 L27.5 25.5 H4.5 Z" stroke-linejoin="round"/></g></svg></span>三角形</td>
+            <td>正上方 / 左下方 / 右下方</td>
+          </tr>
+        </tbody>
+      </table>
+      <p class="note">首手不受限制，可落在任意空格；已被棋子占据的位置不可落子。</p>
+    </section>
+
+    <section class="rules-section">
+      <h3>特殊情况与禁止事项</h3>
+      <ul>
+        <li>落子不得落在导致对方无任何合法落点的位置（该位置禁止落子）。</li>
+        <li>若对方落子后，己方所有可落点都会导致对方无合法落点，则对方判负。</li>
+        <li>棋盘落满且无人形成三连，则本局平局。</li>
+        <li>不得落在已有棋子占据的位置上。</li>
+        <li>不得在未轮到自己时落子，不得移动或覆盖已有棋子。</li>
+      </ul>
+      <p class="note">人机对战：电脑与玩家遵循完全相同的规则，无额外优势。</p>
+    </section>
+  </div>
+</div>
+
+<!-- 终局弹层 -->
+<div id="endOverlay" class="overlay" role="dialog" aria-modal="true" aria-labelledby="endTitle">
+  <div class="modal-card end-card">
+    <h2 id="endTitle">对局结束</h2>
+    <p id="endReason"></p>
+    <div class="end-actions">
+      <button type="button" id="btnAgain" class="btn-primary">再来一局</button>
+      <button type="button" id="btnEndClose" class="btn-ghost">查看棋盘</button>
+    </div>
+  </div>
+</div>
+
+<script>
+(function () {
+  "use strict";
+
+  var SIZE = 13;
+  var TYPES = ["square", "circle", "triangle"];
+  var INF = 1000000;
+  var OFFSETS = {
+    square: [[-1, -1], [-1, 1], [1, -1], [1, 1]],
+    circle: [[-1, 0], [1, 0], [0, -1], [0, 1]],
+    triangle: [[-1, 0], [1, -1], [1, 1]]
+  };
+  var DIRS = [[0, 1], [1, 0], [1, 1], [1, -1]];
+  var TYPE_LABEL = { square: "方形", circle: "圆形", triangle: "三角形" };
+  var COLOR_LABEL = { black: "黑方", white: "白方" };
+  var COLOR_FILL = { black: "#1D1D1F", white: "#FFFFFF" };
+  var COLOR_STROKE = { black: "rgba(255,255,255,0.5)", white: "rgba(0,0,0,0.3)" };
+  var SHAPES = {
+    square: '<rect x="6.5" y="6.5" width="19" height="19" rx="3"/>',
+    circle: '<circle cx="16" cy="16" r="9.5"/>',
+    triangle: '<path class="piece-shape" d="M16 6 L27.5 25.5 H4.5 Z" stroke-linejoin="round"/>'
+  };
+
+  var state = null;
+  var history = [];
+  var cells = [];
+  var notice = null;
+  var mode = "pvp";
+  var playerColor = "black";
+  var difficulty = "medium";
+  var aiThinking = false;
+  var aiTimer = null;
+
+  var boardEl = document.getElementById("board");
+  var statusText = document.getElementById("statusText");
+  var chipDot = document.getElementById("chipDot");
+  var chipLabel = document.getElementById("chipLabel");
+  var btnUndo = document.getElementById("btnUndo");
+  var btnNew = document.getElementById("btnNew");
+  var btnRules = document.getElementById("btnRules");
+  var rulesModal = document.getElementById("rulesModal");
+  var endOverlay = document.getElementById("endOverlay");
+  var endTitle = document.getElementById("endTitle");
+  var endReason = document.getElementById("endReason");
+  var typeBtns = Array.prototype.slice.call(document.querySelectorAll(".type-btn"));
+  var modeBtns = Array.prototype.slice.call(document.querySelectorAll("[data-mode]"));
+  var sideBtns = Array.prototype.slice.call(document.querySelectorAll("[data-side]"));
+  var diffBtns = Array.prototype.slice.call(document.querySelectorAll("[data-diff]"));
+  var pveSettings = document.getElementById("pveSettings");
+
+  function freshState() {
+    var board = [];
+    for (var r = 0; r < SIZE; r++) {
+      board.push(new Array(SIZE).fill(null));
+    }
+    return {
+      board: board,
+      current: "black",
+      phase: "choosePiece",
+      selectedType: null,
+      lastMove: null,
+      winner: null,
+      winReason: null
+    };
+  }
+
+  function snapshot() {
+    return {
+      board: state.board.map(function (row) { return row.slice(); }),
+      current: state.current,
+      phase: state.phase,
+      selectedType: state.selectedType,
+      lastMove: state.lastMove ? { r: state.lastMove.r, c: state.lastMove.c, type: state.lastMove.type } : null,
+      winner: state.winner,
+      winReason: state.winReason
+    };
+  }
+
+  function inBounds(r, c) {
+    return r >= 0 && r < SIZE && c >= 0 && c < SIZE;
+  }
+
+  function legalCellsFrom(last, board) {
+    var cells = [];
+    if (!last) {
+      for (var r = 0; r < SIZE; r++) {
+        for (var c = 0; c < SIZE; c++) {
+          if (!board[r][c]) cells.push([r, c]);
+        }
+      }
+      return cells;
+    }
+    var offs = OFFSETS[last.type];
+    for (var i = 0; i < offs.length; i++) {
+      var r = last.r + offs[i][0];
+      var c = last.c + offs[i][1];
+      if (inBounds(r, c) && !board[r][c]) cells.push([r, c]);
+    }
+    return cells;
+  }
+
+  function legalCells() {
+    return legalCellsFrom(state.lastMove, state.board);
+  }
+
+  function opponentCellsAfter(board, r, c, type) {
+    var copy = board.map(function (row) { return row.slice(); });
+    copy[r][c] = { color: "black", type: type };
+    return legalCellsFrom({ r: r, c: c, type: type }, copy);
+  }
+
+  function playableCells(board, lastMove, type) {
+    var result = [];
+    var cands = legalCellsFrom(lastMove, board);
+    for (var i = 0; i < cands.length; i++) {
+      if (opponentCellsAfter(board, cands[i][0], cands[i][1], type).length > 0) {
+        result.push([cands[i][0], cands[i][1]]);
+      }
+    }
+    return result;
+  }
+
+  function hasAnyPlayableMove(board, lastMove) {
+    for (var t = 0; t < TYPES.length; t++) {
+      if (playableCells(board, lastMove, TYPES[t]).length > 0) return true;
+    }
+    return false;
+  }
+
+  function currentPlayable(type) {
+    return playableCells(state.board, state.lastMove, type);
+  }
+
+  function isPlayerTurn() {
+    return mode !== "pve" || state.current === playerColor;
+  }
+
+  function sideName(color) {
+    if (mode !== "pve") return COLOR_LABEL[color];
+    return color === playerColor ? "你（" + COLOR_LABEL[color] + "）" : "电脑（" + COLOR_LABEL[color] + "）";
+  }
+
+  function enumerateMoves(board, lastMove) {
+    var moves = [];
+    for (var t = 0; t < TYPES.length; t++) {
+      var type = TYPES[t];
+      var cells = playableCells(board, lastMove, type);
+      for (var i = 0; i < cells.length; i++) {
+        moves.push({ type: type, r: cells[i][0], c: cells[i][1] });
+      }
+    }
+    return moves;
+  }
+
+  function simulateMove(board, lastMove, move, color) {
+    var nb = board.map(function (row) { return row.slice(); });
+    nb[move.r][move.c] = { color: color || "black", type: move.type };
+    return { board: nb, lastMove: { r: move.r, c: move.c, type: move.type } };
+  }
+
+  function scoreMove(board, lastMove, move, color) {
+    var sim = simulateMove(board, lastMove, move, color);
+    var opp = color === "black" ? "white" : "black";
+    if (isWin(sim.board, move.r, move.c, color)) return INF;
+    if (!hasAnyPlayableMove(sim.board, sim.lastMove)) return -INF;
+    var score = 0;
+    var oppMoves = enumerateMoves(sim.board, sim.lastMove);
+    var oppWinCount = 0;
+    for (var i = 0; i < oppMoves.length; i++) {
+      if (isWin(sim.board, oppMoves[i].r, oppMoves[i].c, opp)) oppWinCount++;
+    }
+    score -= oppWinCount * 400;
+    var myThreat = false;
+    for (var j = 0; j < oppMoves.length && !myThreat; j++) {
+      var sim2 = simulateMove(sim.board, sim.lastMove, oppMoves[j]);
+      var myMoves = enumerateMoves(sim2.board, sim2.lastMove);
+      for (var k = 0; k < myMoves.length; k++) {
+        if (isWin(sim2.board, myMoves[k].r, myMoves[k].c, color)) { myThreat = true; break; }
+      }
+    }
+    if (myThreat) score += 300;
+    score += (6 - Math.abs(move.r - 6) - Math.abs(move.c - 6)) * 6;
+    var adj = 0;
+    for (var dr = -1; dr <= 1; dr++) {
+      for (var dc = -1; dc <= 1; dc++) {
+        if (dr === 0 && dc === 0) continue;
+        var rr = move.r + dr;
+        var cc = move.c + dc;
+        if (inBounds(rr, cc) && board[rr][cc] && board[rr][cc].color === color) adj++;
+      }
+    }
+    score += adj * 20;
+    return score;
+  }
+
+  function linePotential(board, color) {
+    var total = 0;
+    for (var r = 0; r < SIZE; r++) {
+      for (var c = 0; c < SIZE; c++) {
+        if (!board[r][c] || board[r][c].color !== color) continue;
+        for (var d = 0; d < DIRS.length; d++) {
+          var dr = DIRS[d][0];
+          var dc = DIRS[d][1];
+          var backR = r - dr;
+          var backC = c - dc;
+          if (inBounds(backR, backC) && board[backR][backC] && board[backR][backC].color === color) continue;
+          var len = 1;
+          var rr = r + dr;
+          var cc = c + dc;
+          while (inBounds(rr, cc) && board[rr][cc] && board[rr][cc].color === color) {
+            len++;
+            rr += dr;
+            cc += dc;
+          }
+          total += len * len;
+        }
+      }
+    }
+    return total;
+  }
+
+  function evaluatePosition(board, lastMove, color) {
+    var opp = color === "black" ? "white" : "black";
+    var center = 0;
+    for (var r = 0; r < SIZE; r++) {
+      for (var c = 0; c < SIZE; c++) {
+        if (board[r][c] && board[r][c].color === color) {
+          center += 6 - Math.abs(r - 6) - Math.abs(c - 6);
+        }
+      }
+    }
+    return (linePotential(board, color) - linePotential(board, opp)) * 10 + center * 2;
+  }
+
+  function negamax(board, lastMove, mover, depth, alpha, beta) {
+    if (boardFull(board)) return 0;
+    var moves = enumerateMoves(board, lastMove);
+    if (moves.length === 0) return INF;
+    if (depth === 0) return evaluatePosition(board, lastMove, mover);
+    var best = -INF;
+    var opp = mover === "black" ? "white" : "black";
+    for (var i = 0; i < moves.length; i++) {
+      var m = moves[i];
+      var sim = simulateMove(board, lastMove, m, mover);
+      var val;
+      if (isWin(sim.board, m.r, m.c, mover)) {
+        val = INF - depth;
+      } else {
+        val = -negamax(sim.board, sim.lastMove, opp, depth - 1, -beta, -alpha);
+      }
+      if (val > best) best = val;
+      if (best > alpha) alpha = best;
+      if (alpha >= beta) break;
+    }
+    return best;
+  }
+
+  function chooseMove(board, lastMove, color, diff) {
+    var moves = enumerateMoves(board, lastMove);
+    if (moves.length === 0) return null;
+    if (diff === "easy") {
+      return moves[Math.floor(Math.random() * moves.length)];
+    }
+    var scored = [];
+    for (var i = 0; i < moves.length; i++) {
+      scored.push({ move: moves[i], score: scoreMove(board, lastMove, moves[i], color) });
+    }
+    scored.sort(function (a, b) { return b.score - a.score; });
+    if (diff === "medium") {
+      var bestScore = scored[0].score;
+      var ties = [];
+      for (var j = 0; j < scored.length; j++) {
+        if (scored[j].score === bestScore) ties.push(scored[j].move);
+      }
+      return ties[Math.floor(Math.random() * ties.length)];
+    }
+    var bestMove = scored[0].move;
+    var bestVal = -INF - 1;
+    var alpha = -INF - 1;
+    var opp = color === "black" ? "white" : "black";
+    for (var k = 0; k < scored.length; k++) {
+      var m = scored[k].move;
+      var sim = simulateMove(board, lastMove, m, color);
+      var val;
+      if (isWin(sim.board, m.r, m.c, color)) {
+        val = INF;
+      } else {
+        var searchDepth = scored.length > 20 ? 2 : 3;
+        val = -negamax(sim.board, sim.lastMove, opp, searchDepth, -INF - 1, -alpha);
+      }
+      if (val > bestVal) { bestVal = val; bestMove = m; }
+      if (val > alpha) alpha = val;
+      if (alpha >= INF) break;
+    }
+    return bestMove;
+  }
+
+  function countDir(board, r, c, color, dr, dc) {
+    var n = 0;
+    var rr = r + dr;
+    var cc = c + dc;
+    while (inBounds(rr, cc) && board[rr][cc] && board[rr][cc].color === color) {
+      n++;
+      rr += dr;
+      cc += dc;
+    }
+    return n;
+  }
+
+  function isWin(board, r, c, color) {
+    for (var i = 0; i < DIRS.length; i++) {
+      var dr = DIRS[i][0];
+      var dc = DIRS[i][1];
+      var total = 1 + countDir(board, r, c, color, dr, dc) + countDir(board, r, c, color, -dr, -dc);
+      if (total >= 3) return true;
+    }
+    return false;
+  }
+
+  function boardFull(board) {
+    for (var r = 0; r < SIZE; r++) {
+      for (var c = 0; c < SIZE; c++) {
+        if (!board[r][c]) return false;
+      }
+    }
+    return true;
+  }
+
+  function pieceSVG(type, color) {
+    return '<svg viewBox="0 0 32 32" aria-hidden="true"><g fill="' + COLOR_FILL[color] +
+      '" stroke="' + COLOR_STROKE[color] + '" stroke-width="1">' + SHAPES[type] + "</g></svg>";
+  }
+
+  function iconSVG(type) {
+    return '<svg viewBox="0 0 32 32" aria-hidden="true"><g fill="currentColor">' + SHAPES[type] + "</g></svg>";
+  }
+
+  function winnerLabel() {
+    if (mode !== "pve") return COLOR_LABEL[state.winner];
+    return state.winner === playerColor ? "你" : "电脑";
+  }
+
+  function statusMessage() {
+    if (aiThinking && mode === "pve") return "电脑思考中…";
+    if (notice) return notice;
+    if (state.winner) {
+      if (state.winner === "draw") return "棋盘已满，无人形成三连，本局平局";
+      var loser = state.winner === "black" ? "white" : "black";
+      var reason = state.winReason === "deadlock"
+        ? sideName(loser) + "判负（落子致" + sideName(state.winner) + "无合法落点）"
+        : "三子连线";
+      return winnerLabel() + "获胜！" + reason;
+    }
+    if (state.phase === "chooseCell") {
+      return sideName(state.current) + "回合 · 已选" + TYPE_LABEL[state.selectedType] + "，请点击高亮格子落子";
+    }
+    return sideName(state.current) + "回合 · 请选择棋子类型";
+  }
+
+  function buildBoard() {
+    boardEl.innerHTML = "";
+    cells = [];
+    for (var r = 0; r < SIZE; r++) {
+      for (var c = 0; c < SIZE; c++) {
+        (function (row, col) {
+          var btn = document.createElement("button");
+          btn.type = "button";
+          btn.className = "cell" + ((row + col) % 2 === 1 ? " even" : "");
+          btn.setAttribute("role", "gridcell");
+          btn.setAttribute("data-r", row);
+          btn.setAttribute("data-c", col);
+          btn.addEventListener("click", function () { onCellClick(row, col); });
+          boardEl.appendChild(btn);
+          cells.push(btn);
+        })(r, c);
+      }
+    }
+  }
+
+  function render() {
+    var legalSet = {};
+    if (!state.winner && state.phase === "chooseCell" && state.selectedType) {
+      var legals = currentPlayable(state.selectedType);
+      for (var i = 0; i < legals.length; i++) {
+        legalSet[legals[i][0] * SIZE + legals[i][1]] = true;
+      }
+    }
+
+    for (var k = 0; k < cells.length; k++) {
+      var btn = cells[k];
+      var r = +btn.getAttribute("data-r");
+      var c = +btn.getAttribute("data-c");
+      var piece = state.board[r][c];
+      var isLegal = !state.winner && !aiThinking && isPlayerTurn() && state.phase === "chooseCell" && legalSet[r * SIZE + c] === true;
+
+      btn.classList.toggle("legal", isLegal);
+      btn.classList.toggle("last", !!state.lastMove && state.lastMove.r === r && state.lastMove.c === c);
+      btn.disabled = !isLegal;
+      btn.innerHTML = piece ? pieceSVG(piece.type, piece.color) : "";
+
+      var label;
+      if (piece) {
+        label = "第" + (r + 1) + "行第" + (c + 1) + "列，" + COLOR_LABEL[piece.color] + TYPE_LABEL[piece.type];
+      } else if (isLegal) {
+        label = "第" + (r + 1) + "行第" + (c + 1) + "列，可落子";
+      } else {
+        label = "第" + (r + 1) + "行第" + (c + 1) + "列";
+      }
+      btn.setAttribute("aria-label", label);
+    }
+
+    for (var t = 0; t < typeBtns.length; t++) {
+      var b = typeBtns[t];
+      var active = state.phase === "chooseCell" && state.selectedType === b.getAttribute("data-type");
+      b.classList.toggle("selected", active);
+      b.setAttribute("aria-pressed", active ? "true" : "false");
+      b.disabled = !!state.winner || aiThinking || !isPlayerTurn();
+    }
+
+    var activeColor = state.winner && state.winner !== "draw" ? state.winner : state.current;
+    chipLabel.textContent = state.winner && state.winner === "draw" ? "平局" : sideName(activeColor) + "回合";
+    chipDot.style.background = COLOR_FILL[activeColor];
+    statusText.textContent = statusMessage();
+    btnUndo.disabled = history.length === 0 || !!state.winner || aiThinking;
+    pveSettings.classList.toggle("visible", mode === "pve");
+    setSegState(modeBtns, "data-mode", mode);
+    setSegState(sideBtns, "data-side", playerColor);
+    setSegState(diffBtns, "data-diff", difficulty);
+  }
+
+  function applyMove(r, c, type) {
+    history.push(snapshot());
+    notice = null;
+    state.board[r][c] = { color: state.current, type: type };
+    state.lastMove = { r: r, c: c, type: type };
+
+    if (isWin(state.board, r, c, state.current)) {
+      state.winner = state.current;
+      state.winReason = "three";
+      state.phase = "over";
+      render();
+      showEnd();
+      return;
+    }
+
+    if (boardFull(state.board)) {
+      state.winner = "draw";
+      state.phase = "over";
+      render();
+      showEnd();
+      return;
+    }
+
+    var opp = state.current === "black" ? "white" : "black";
+    state.current = opp;
+    state.phase = "choosePiece";
+    state.selectedType = null;
+    if (!hasAnyPlayableMove(state.board, state.lastMove)) {
+      state.winner = opp;
+      state.winReason = "deadlock";
+      state.phase = "over";
+      render();
+      showEnd();
+      return;
+    }
+    render();
+    maybeScheduleAi();
+  }
+
+  function onCellClick(r, c) {
+    if (state.winner || aiThinking || !isPlayerTurn()) return;
+    if (state.phase !== "chooseCell" || !state.selectedType) return;
+    if (state.board[r][c]) return;
+    var legals = currentPlayable(state.selectedType);
+    var ok = false;
+    for (var i = 0; i < legals.length; i++) {
+      if (legals[i][0] === r && legals[i][1] === c) { ok = true; break; }
+    }
+    if (!ok) return;
+    if (opponentCellsAfter(state.board, r, c, state.selectedType).length === 0) return;
+    applyMove(r, c, state.selectedType);
+  }
+
+  function selectType(type) {
+    if (state.winner || aiThinking || !isPlayerTurn()) return;
+    notice = null;
+    if (state.phase === "chooseCell" && state.selectedType === type) {
+      state.selectedType = null;
+      state.phase = "choosePiece";
+    } else if (state.phase === "chooseCell") {
+      if (currentPlayable(type).length === 0) {
+        notice = "该棋子类型当前无合法落点，请改选其他类型";
+      } else {
+        state.selectedType = type;
+      }
+    } else if (state.phase === "choosePiece") {
+      if (currentPlayable(type).length === 0) {
+        notice = "该棋子类型当前无合法落点，请改选其他类型";
+      } else {
+        state.selectedType = type;
+        state.phase = "chooseCell";
+      }
+    }
+    render();
+  }
+
+  function setSegState(btns, attr, value) {
+    for (var i = 0; i < btns.length; i++) {
+      var on = btns[i].getAttribute(attr) === value;
+      btns[i].classList.toggle("selected", on);
+      btns[i].setAttribute("aria-pressed", on ? "true" : "false");
+    }
+  }
+
+  function setMode(m) {
+    if (m === mode) return;
+    mode = m;
+    newGame();
+  }
+
+  function setSide(c) {
+    if (c === playerColor) return;
+    playerColor = c;
+    newGame();
+  }
+
+  function setDifficulty(d) {
+    difficulty = d;
+    render();
+  }
+
+  function aiMove() {
+    var mv = chooseMove(state.board, state.lastMove, state.current, difficulty);
+    if (mv) applyMove(mv.r, mv.c, mv.type);
+  }
+
+  function maybeScheduleAi() {
+    if (state.winner || aiTimer) return;
+    if (mode === "pve" && state.current !== playerColor) {
+      aiThinking = true;
+      render();
+      aiTimer = setTimeout(function () {
+        aiTimer = null;
+        aiThinking = false;
+        if (state.winner) { render(); return; }
+        aiMove();
+      }, 500);
+    }
+  }
+
+  function undo() {
+    if (history.length === 0 || state.winner || aiThinking) return;
+    if (mode === "pve") {
+      while (history.length > 0) {
+        state = history.pop();
+        if (state.current === playerColor) break;
+      }
+    } else {
+      state = history.pop();
+    }
+    notice = null;
+    render();
+    maybeScheduleAi();
+  }
+
+  function newGame() {
+    if (aiTimer) { clearTimeout(aiTimer); aiTimer = null; }
+    aiThinking = false;
+    history = [];
+    state = freshState();
+    notice = null;
+    endOverlay.classList.remove("open");
+    render();
+    maybeScheduleAi();
+  }
+
+  function showEnd() {
+    if (state.winner === "draw") {
+      endTitle.textContent = "平局";
+      endReason.textContent = "棋盘已满，无人形成三连";
+    } else {
+      endTitle.textContent = winnerLabel() + "获胜";
+      var loser = state.winner === "black" ? "white" : "black";
+      endReason.textContent = state.winReason === "deadlock"
+        ? sideName(loser) + "判负 · 落子致" + sideName(state.winner) + "无合法落点"
+        : "三子连线";
+    }
+    endOverlay.classList.add("open");
+  }
+
+  for (var i = 0; i < typeBtns.length; i++) {
+    (function (b) {
+      b.querySelector(".type-icon").innerHTML = iconSVG(b.getAttribute("data-type"));
+      b.addEventListener("click", function () { selectType(b.getAttribute("data-type")); });
+    })(typeBtns[i]);
+  }
+
+  btnNew.addEventListener("click", newGame);
+  btnUndo.addEventListener("click", undo);
+  btnRules.addEventListener("click", function () { rulesModal.classList.add("open"); });
+  for (var mi = 0; mi < modeBtns.length; mi++) {
+    (function (b) {
+      b.addEventListener("click", function () { setMode(b.getAttribute("data-mode")); });
+    })(modeBtns[mi]);
+  }
+  for (var si = 0; si < sideBtns.length; si++) {
+    (function (b) {
+      b.addEventListener("click", function () { setSide(b.getAttribute("data-side")); });
+    })(sideBtns[si]);
+  }
+  for (var dii = 0; dii < diffBtns.length; dii++) {
+    (function (b) {
+      b.addEventListener("click", function () { setDifficulty(b.getAttribute("data-diff")); });
+    })(diffBtns[dii]);
+  }
+  document.getElementById("btnAgain").addEventListener("click", newGame);
+  document.getElementById("btnEndClose").addEventListener("click", function () { endOverlay.classList.remove("open"); });
+
+  var closeBtns = Array.prototype.slice.call(document.querySelectorAll("[data-close]"));
+  for (var j = 0; j < closeBtns.length; j++) {
+    closeBtns[j].addEventListener("click", function () { rulesModal.classList.remove("open"); });
+  }
+
+  rulesModal.addEventListener("click", function (e) {
+    if (e.target === rulesModal) rulesModal.classList.remove("open");
+  });
+  endOverlay.addEventListener("click", function (e) {
+    if (e.target === endOverlay) endOverlay.classList.remove("open");
+  });
+
+  document.addEventListener("keydown", function (e) {
+    if (e.key === "Escape") {
+      rulesModal.classList.remove("open");
+      endOverlay.classList.remove("open");
+    }
+  });
+
+  buildBoard();
+  newGame();
+})();
+</script>
+</body>
+</html>
