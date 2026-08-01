@@ -222,6 +222,68 @@ button {
   color: var(--text-secondary);
 }
 
+.stats-card {
+  display: none;
+  margin-top: 16px;
+  background-color: var(--bg-surface);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-md);
+  padding: 14px 16px;
+}
+
+.stats-card.visible {
+  display: block;
+}
+
+.stats-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  margin-bottom: 4px;
+}
+
+.stats-title {
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.btn-sm {
+  padding: 4px 10px;
+  font-size: 12px;
+}
+
+.stats-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 7px 0;
+  font-size: 13px;
+  border-top: 1px solid var(--border-subtle);
+}
+
+.stats-row:first-child {
+  border-top: none;
+}
+
+.stats-diff {
+  font-weight: 500;
+  min-width: 44px;
+}
+
+.stats-num {
+  color: var(--text-secondary);
+  flex: 1;
+}
+
+.stats-rate {
+  font-weight: 600;
+  color: var(--accent);
+  min-width: 52px;
+  text-align: right;
+}
+
 .turn-bar {
   display: flex;
   align-items: center;
@@ -403,6 +465,20 @@ button {
 
 .cell.last {
   box-shadow: inset 0 0 0 2px var(--accent);
+}
+
+.cell.win {
+  box-shadow: inset 0 0 0 2px var(--accent);
+  background-color: var(--accent-soft);
+}
+
+.cell.win svg {
+  animation: winBounce 0.8s ease-in-out infinite;
+}
+
+@keyframes winBounce {
+  0%, 100% { transform: scale(1); }
+  50% { transform: scale(1.12); }
 }
 
 .footer-note {
@@ -639,6 +715,14 @@ button {
     <div id="board" class="board" role="grid" aria-label="13 乘 13 棋盘"></div>
   </section>
 
+  <section class="stats-card" id="statsCard" aria-label="人机对战战绩">
+    <div class="stats-head">
+      <span class="stats-title">人机战绩</span>
+      <button type="button" class="btn-ghost btn-sm" id="btnResetStats">重置</button>
+    </div>
+    <div id="statsBody"></div>
+  </section>
+
   <p class="footer-note">离线单页游戏 · 无网络依赖 · 深浅色自动适配</p>
 </main>
 
@@ -747,6 +831,9 @@ button {
   var difficulty = "medium";
   var aiThinking = false;
   var aiTimer = null;
+  var winCells = [];
+  var statsKey = "sanxing_pve_stats";
+  var stats = { easy: { w: 0, l: 0, d: 0 }, medium: { w: 0, l: 0, d: 0 }, hard: { w: 0, l: 0, d: 0 } };
 
   var boardEl = document.getElementById("board");
   var statusText = document.getElementById("statusText");
@@ -764,6 +851,9 @@ button {
   var sideBtns = Array.prototype.slice.call(document.querySelectorAll("[data-side]"));
   var diffBtns = Array.prototype.slice.call(document.querySelectorAll("[data-diff]"));
   var pveSettings = document.getElementById("pveSettings");
+  var statsCard = document.getElementById("statsCard");
+  var statsBody = document.getElementById("statsBody");
+  var btnResetStats = document.getElementById("btnResetStats");
 
   function freshState() {
     var board = [];
@@ -1043,6 +1133,30 @@ button {
     return true;
   }
 
+  function winningLine(board, r, c, color) {
+    for (var d = 0; d < DIRS.length; d++) {
+      var dr = DIRS[d][0];
+      var dc = DIRS[d][1];
+      var cells = [];
+      var rr = r;
+      var cc = c;
+      while (inBounds(rr, cc) && board[rr][cc] && board[rr][cc].color === color) {
+        cells.push([rr, cc]);
+        rr -= dr;
+        cc -= dc;
+      }
+      rr = r + dr;
+      cc = c + dc;
+      while (inBounds(rr, cc) && board[rr][cc] && board[rr][cc].color === color) {
+        cells.push([rr, cc]);
+        rr += dr;
+        cc += dc;
+      }
+      if (cells.length >= 3) return cells;
+    }
+    return null;
+  }
+
   function pieceSVG(type, color) {
     return '<svg viewBox="0 0 32 32" aria-hidden="true"><g fill="' + COLOR_FILL[color] +
       '" stroke="' + COLOR_STROKE[color] + '" stroke-width="1">' + SHAPES[type] + "</g></svg>";
@@ -1103,6 +1217,11 @@ button {
       }
     }
 
+    var winSet = {};
+    for (var wi = 0; wi < winCells.length; wi++) {
+      winSet[winCells[wi][0] * SIZE + winCells[wi][1]] = true;
+    }
+
     for (var k = 0; k < cells.length; k++) {
       var btn = cells[k];
       var r = +btn.getAttribute("data-r");
@@ -1112,6 +1231,7 @@ button {
 
       btn.classList.toggle("legal", isLegal);
       btn.classList.toggle("last", !!state.lastMove && state.lastMove.r === r && state.lastMove.c === c);
+      btn.classList.toggle("win", winSet[r * SIZE + c] === true);
       btn.disabled = !isLegal;
       btn.innerHTML = piece ? pieceSVG(piece.type, piece.color) : "";
 
@@ -1140,12 +1260,14 @@ button {
     statusText.textContent = statusMessage();
     btnUndo.disabled = history.length === 0 || !!state.winner || aiThinking;
     pveSettings.classList.toggle("visible", mode === "pve");
+    statsCard.classList.toggle("visible", mode === "pve");
     setSegState(modeBtns, "data-mode", mode);
     setSegState(sideBtns, "data-side", playerColor);
     setSegState(diffBtns, "data-diff", difficulty);
   }
 
   function applyMove(r, c, type) {
+    winCells = [];
     history.push(snapshot());
     notice = null;
     state.board[r][c] = { color: state.current, type: type };
@@ -1154,6 +1276,7 @@ button {
     if (isWin(state.board, r, c, state.current)) {
       state.winner = state.current;
       state.winReason = "three";
+      winCells = winningLine(state.board, r, c, state.current) || [];
       state.phase = "over";
       render();
       showEnd();
@@ -1283,12 +1406,56 @@ button {
   function newGame() {
     if (aiTimer) { clearTimeout(aiTimer); aiTimer = null; }
     aiThinking = false;
+    winCells = [];
     history = [];
     state = freshState();
     notice = null;
     endOverlay.classList.remove("open");
     render();
     maybeScheduleAi();
+  }
+
+  function loadStats() {
+    try {
+      var raw = localStorage.getItem(statsKey);
+      if (raw) {
+        var parsed = JSON.parse(raw);
+        for (var k in stats) {
+          if (parsed[k]) {
+            stats[k].w = parsed[k].w || 0;
+            stats[k].l = parsed[k].l || 0;
+            stats[k].d = parsed[k].d || 0;
+          }
+        }
+      }
+    } catch (e) {}
+  }
+
+  function saveStats() {
+    try {
+      localStorage.setItem(statsKey, JSON.stringify(stats));
+    } catch (e) {}
+  }
+
+  function renderStats() {
+    var labels = ["简单", "中等", "困难"];
+    var keys = ["easy", "medium", "hard"];
+    var html = "";
+    for (var i = 0; i < labels.length; i++) {
+      var s = stats[keys[i]];
+      var total = s.w + s.l + s.d;
+      var rate = total > 0 ? Math.round((s.w / total) * 100) + "%" : "—";
+      html += '<div class="stats-row"><span class="stats-diff">' + labels[i] +
+        '</span><span class="stats-num">' + s.w + " 胜 · " + s.l + " 负 · " + s.d + " 平</span>" +
+        '<span class="stats-rate">' + rate + "</span></div>";
+    }
+    statsBody.innerHTML = html;
+  }
+
+  function resetStats() {
+    stats = { easy: { w: 0, l: 0, d: 0 }, medium: { w: 0, l: 0, d: 0 }, hard: { w: 0, l: 0, d: 0 } };
+    saveStats();
+    renderStats();
   }
 
   function showEnd() {
@@ -1301,6 +1468,15 @@ button {
       endReason.textContent = state.winReason === "deadlock"
         ? sideName(loser) + "判负 · 落子致" + sideName(state.winner) + "无合法落点"
         : "三子连线";
+    }
+    if (mode === "pve") {
+      var s = stats[difficulty];
+      if (!s) s = stats.medium;
+      if (state.winner === "draw") s.d++;
+      else if (state.winner === playerColor) s.w++;
+      else s.l++;
+      saveStats();
+      renderStats();
     }
     endOverlay.classList.add("open");
   }
@@ -1354,6 +1530,9 @@ button {
 
   buildBoard();
   newGame();
+  loadStats();
+  renderStats();
+  btnResetStats.addEventListener("click", resetStats);
 })();
 </script>
 </body>
