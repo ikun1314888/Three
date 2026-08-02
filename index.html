@@ -1697,10 +1697,24 @@ button {
     },
     {
       title: "禁手与判负",
-      text: "<p><b class=\"hl\">禁手</b>：不能落在导致对方无任何合法落点的位置。</p><p>看这个局面：白方刚落下<b>方形</b>，你只有一个可落点。点击它看看会发生什么——无论你选方形、圆形还是三角形，落下去白方都会<b>没有任何合法落点</b>。</p><p>而你的所有可落点都是这种情况，所以按规则<b class=\"hl\">判白方负，你获胜</b>。</p><p>另外：不能占据已有棋子的格子，也不能在未轮到自己时落子。</p>",
+      text: "<p><b class=\"hl\">禁手</b>：不能落在导致对方无任何合法落点的位置。</p><p>看这个真实对局局面：白方刚落下<b>圆形</b>，你只有一个可落点。点击它看看会发生什么——无论你选方形、圆形还是三角形，落下去白方都会<b>没有任何合法落点</b>。</p><p>而你的所有可落点都是这种情况，所以按规则<b class=\"hl\">判白方负，你获胜</b>。</p><p>另外：不能占据已有棋子的格子，也不能在未轮到自己时落子。</p>",
       hint: "点击高亮格，看看会发生什么",
       hintSuccess: "白方已无任何合法落点！判白方负，你获胜。",
-      demo: { type: "trap" },
+      demo: {
+        type: "trap",
+        last: { r: 0, c: 2, type: "circle" },
+        pieces: [
+          { color: "white", type: "circle", r: 1, c: 2 },
+          { color: "black", type: "square", r: 1, c: 1 },
+          { color: "white", type: "circle", r: 0, c: 0 },
+          { color: "black", type: "triangle", r: 1, c: 0 },
+          { color: "white", type: "circle", r: 2, c: 1 },
+          { color: "black", type: "square", r: 2, c: 2 },
+          { color: "white", type: "triangle", r: 1, c: 3 },
+          { color: "black", type: "circle", r: 0, c: 3 },
+          { color: "white", type: "circle", r: 0, c: 2 }
+        ]
+      },
       interactive: true
     }
   ];
@@ -1791,13 +1805,23 @@ button {
         }
       }
     } else if (demo.type === "trap") {
-      var occ = [[1, 0], [0, 2], [2, 1], [2, 3], [0, 3], [2, 2], [1, 1], [1, 3]];
-      for (var p = 0; p < occ.length; p++) {
-        tutorialCells[occ[p][0] * 7 + occ[p][1]].innerHTML = pieceSVG("circle", "white");
+      var pieces = demo.pieces || [];
+      var occupied = {};
+      for (var p = 0; p < pieces.length; p++) {
+        var pc = pieces[p];
+        tutorialCells[pc.r * 7 + pc.c].innerHTML = pieceSVG(pc.type, pc.color);
+        occupied[pc.r * 7 + pc.c] = true;
       }
-      tutorialCells[0 * 7 + 1].innerHTML = pieceSVG("square", "white");
-      tutorialCells[0 * 7 + 1].classList.add("lm");
-      tutorialCells[1 * 7 + 2].classList.add("legal");
+      var lm = demo.last || { r: 0, c: 2, type: "circle" };
+      tutorialCells[lm.r * 7 + lm.c].classList.add("lm");
+      var offsT = OFFSETS[lm.type];
+      for (var j2 = 0; j2 < offsT.length; j2++) {
+        var rr2 = lm.r + offsT[j2][0];
+        var cc2 = lm.c + offsT[j2][1];
+        if (rr2 >= 0 && rr2 < 7 && cc2 >= 0 && cc2 < 7 && !occupied[rr2 * 7 + cc2]) {
+          tutorialCells[rr2 * 7 + cc2].classList.add("legal");
+        }
+      }
     }
   }
 
