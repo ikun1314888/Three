@@ -597,6 +597,10 @@ button {
   background-color: var(--accent-soft);
 }
 
+.t-cell.lm {
+  box-shadow: inset 0 0 0 2px var(--accent);
+}
+
 .tutorial-text {
   font-size: 14px;
   color: var(--text-primary);
@@ -1693,8 +1697,11 @@ button {
     },
     {
       title: "禁手与判负",
-      text: "<p><b class=\"hl\">禁手</b>：不能落在导致对方无任何合法落点的位置。</p><p><b class=\"hl\">判负</b>：如果对方落子后，你无论选哪种棋子、落哪个位置都会让对方无合法落点，那么判对方负、你获胜。</p><p>另外：不能占据已有棋子的格子，也不能在未轮到自己时落子。</p>",
-      demo: { type: "none" }
+      text: "<p><b class=\"hl\">禁手</b>：不能落在导致对方无任何合法落点的位置。</p><p>看这个局面：白方刚落下<b>方形</b>，你只有一个可落点。点击它看看会发生什么——无论你选方形、圆形还是三角形，落下去白方都会<b>没有任何合法落点</b>。</p><p>而你的所有可落点都是这种情况，所以按规则<b class=\"hl\">判白方负，你获胜</b>。</p><p>另外：不能占据已有棋子的格子，也不能在未轮到自己时落子。</p>",
+      hint: "点击高亮格，看看会发生什么",
+      hintSuccess: "白方已无任何合法落点！判白方负，你获胜。",
+      demo: { type: "trap" },
+      interactive: true
     }
   ];
 
@@ -1783,6 +1790,14 @@ button {
           tutorialCells[rr * 7 + cc].classList.add("legal");
         }
       }
+    } else if (demo.type === "trap") {
+      var occ = [[1, 0], [0, 2], [2, 1], [2, 3], [0, 3], [2, 2], [1, 1], [1, 3]];
+      for (var p = 0; p < occ.length; p++) {
+        tutorialCells[occ[p][0] * 7 + occ[p][1]].innerHTML = pieceSVG("circle", "white");
+      }
+      tutorialCells[0 * 7 + 1].innerHTML = pieceSVG("square", "white");
+      tutorialCells[0 * 7 + 1].classList.add("lm");
+      tutorialCells[1 * 7 + 2].classList.add("legal");
     }
   }
 
@@ -1796,7 +1811,7 @@ button {
       if (!tutorialInteractiveDone) {
         cell.innerHTML = pieceSVG("circle", "black");
         tutorialInteractiveDone = true;
-        tutorialHint.textContent = "很好！你完成了一次落子。";
+        tutorialHint.textContent = step.hintSuccess || "很好！你完成了一次落子。";
         btnTutorialNext.disabled = false;
       }
     } else {
