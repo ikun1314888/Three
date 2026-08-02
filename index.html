@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<meta name="description" content="三形连锁棋：13×13 双人对弈，三子连线获胜。离线单页游戏。">
+<meta name="description" content="三形连锁棋：13×13 双人对弈，三子连线获胜。支持双人、人机与联机对战。">
 <title>三形连锁棋</title>
 <style>
 :root {
@@ -75,7 +75,7 @@ button {
   justify-content: space-between;
   gap: 12px;
   flex-wrap: wrap;
-  padding: 18px 20px;
+  padding: 10px 20px;
   border-bottom: 1px solid var(--border-subtle);
   background-color: var(--bg-surface);
   position: sticky;
@@ -85,7 +85,7 @@ button {
 
 .brand h1 {
   margin: 0;
-  font-size: clamp(20px, 4.5vw, 26px);
+  font-size: clamp(18px, 4vw, 22px);
   font-weight: 600;
   letter-spacing: 0.01em;
 }
@@ -757,6 +757,8 @@ button {
   font-size: 20px;
   letter-spacing: 4px;
   text-transform: uppercase;
+  border-radius: 14px;
+  padding: 10px 12px;
 }
 
 .join-error {
@@ -902,7 +904,7 @@ button {
 
 @media (max-width: 640px) {
   .app-header {
-    padding: 14px 16px;
+    padding: 8px 12px;
   }
 
   .content {
@@ -934,6 +936,15 @@ button {
     border-radius: 0;
     padding: 20px 18px 28px;
   }
+
+  .modal-card.join-card {
+    max-width: 380px;
+    width: 100%;
+    height: auto;
+    max-height: 84vh;
+    border-radius: var(--radius-lg);
+    padding: 22px 24px 24px;
+  }
 }
 </style>
 </head>
@@ -942,7 +953,6 @@ button {
 <header class="app-header">
   <div class="brand">
     <h1>三形连锁棋</h1>
-    <p>13 × 13 双人对弈 · 三子连线获胜</p>
   </div>
   <div class="header-actions">
     <button type="button" id="btnUndo" class="btn-ghost">悔棋</button>
@@ -1028,7 +1038,7 @@ button {
 
 
 
-  <p class="footer-note">离线单页游戏 · 无网络依赖 · 深浅色自动适配</p>
+
 </main>
 
 <!-- 加入房间 -->
@@ -1039,7 +1049,7 @@ button {
       <button type="button" class="btn-ghost" data-close-join>取消</button>
     </div>
     <p class="join-note">请输入对方的 5 位房间码</p>
-    <input type="text" id="joinCodeInput" class="input join-input" maxlength="5" placeholder="如 AB3K9" autocomplete="off" spellcheck="false" aria-label="房间码">
+    <input type="text" id="joinCodeInput" class="input join-input" maxlength="5" autocomplete="off" spellcheck="false" aria-label="房间码">
     <p class="join-error" id="joinError"></p>
     <div class="join-actions">
       <button type="button" class="btn-primary" id="btnJoinConfirm">加入</button>
