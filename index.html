@@ -502,6 +502,154 @@ button {
   color: var(--text-tertiary);
 }
 
+.tutorial-card {
+  max-width: 460px;
+  text-align: left;
+}
+
+.tutorial-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  margin-bottom: 10px;
+}
+
+.tutorial-title {
+  margin: 0;
+  font-size: 18px;
+  font-weight: 600;
+}
+
+.tutorial-demo {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  min-height: 220px;
+  margin-bottom: 12px;
+}
+
+.tutorial-board {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  grid-template-rows: repeat(7, 1fr);
+  width: min(56vw, 280px);
+  aspect-ratio: 1 / 1;
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-md);
+  overflow: hidden;
+  background-color: var(--cell-odd);
+}
+
+.tutorial-board.shake {
+  animation: shake 0.2s ease;
+}
+
+@keyframes shake {
+  0%, 100% { transform: translateX(0); }
+  25% { transform: translateX(-3px); }
+  75% { transform: translateX(3px); }
+}
+
+.t-cell {
+  appearance: none;
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  margin: 0;
+  background-color: var(--cell-odd);
+  border: none;
+  border-right: 1px solid var(--border-subtle);
+  border-bottom: 1px solid var(--border-subtle);
+  transition: background-color var(--transition-fast), transform var(--transition-fast);
+}
+
+.t-cell.even {
+  background-color: var(--cell-even);
+}
+
+.t-cell svg {
+  width: 70%;
+  height: 70%;
+  display: block;
+}
+
+.t-cell.legal {
+  cursor: pointer;
+  background-color: var(--accent-soft);
+}
+
+.t-cell.legal::after {
+  content: "";
+  position: absolute;
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background-color: var(--accent);
+  opacity: 0.9;
+  pointer-events: none;
+}
+
+.t-cell.win {
+  box-shadow: inset 0 0 0 2px var(--accent);
+  background-color: var(--accent-soft);
+}
+
+.tutorial-text {
+  font-size: 14px;
+  color: var(--text-primary);
+  margin-bottom: 8px;
+}
+
+.tutorial-text p {
+  margin: 0 0 6px;
+}
+
+.tutorial-text .hl {
+  color: var(--accent);
+  font-weight: 600;
+}
+
+.tutorial-text svg {
+  width: 18px;
+  height: 18px;
+  vertical-align: -4px;
+}
+
+.tutorial-hint {
+  font-size: 13px;
+  color: var(--text-tertiary);
+  min-height: 18px;
+  margin-bottom: 10px;
+}
+
+.tutorial-progress {
+  display: flex;
+  gap: 6px;
+  justify-content: center;
+  margin-bottom: 12px;
+}
+
+.tutorial-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background-color: var(--border-subtle);
+  transition: background-color var(--transition-fast);
+}
+
+.tutorial-dot.active {
+  background-color: var(--accent);
+}
+
+.tutorial-actions {
+  display: flex;
+  justify-content: space-between;
+  gap: 10px;
+}
+
 .overlay {
   position: fixed;
   inset: 0;
@@ -679,6 +827,7 @@ button {
     <button type="button" id="btnUndo" class="btn-ghost">悔棋</button>
     <button type="button" id="btnNew" class="btn-ghost">新开局</button>
     <button type="button" id="btnRules" class="btn-ghost">规则</button>
+    <button type="button" class="btn-ghost" id="btnTutorial">教程</button>
     <div class="popover-anchor">
       <button type="button" class="btn-ghost" id="btnStats" aria-haspopup="true" aria-expanded="false">战绩</button>
       <div class="popover" id="statsPopover" role="dialog" aria-label="人机对战战绩">
@@ -743,6 +892,24 @@ button {
 
   <p class="footer-note">离线单页游戏 · 无网络依赖 · 深浅色自动适配</p>
 </main>
+
+<!-- 新手教程 -->
+<div id="tutorialModal" class="overlay" role="dialog" aria-modal="true" aria-labelledby="tutorialTitle">
+  <div class="modal-card tutorial-card">
+    <div class="tutorial-head">
+      <h2 id="tutorialTitle" class="tutorial-title">新手教程</h2>
+      <button type="button" class="btn-ghost btn-sm" id="btnTutorialClose">跳过</button>
+    </div>
+    <div id="tutorialDemo" class="tutorial-demo"></div>
+    <div id="tutorialText" class="tutorial-text"></div>
+    <div id="tutorialHint" class="tutorial-hint"></div>
+    <div id="tutorialProgress" class="tutorial-progress"></div>
+    <div class="tutorial-actions">
+      <button type="button" class="btn-ghost" id="btnTutorialPrev">上一步</button>
+      <button type="button" class="btn-primary" id="btnTutorialNext">下一步</button>
+    </div>
+  </div>
+</div>
 
 <!-- 规则面板 -->
 <div id="rulesModal" class="overlay" role="dialog" aria-modal="true" aria-labelledby="rulesTitle">
@@ -873,6 +1040,16 @@ button {
   var btnResetStats = document.getElementById("btnResetStats");
   var btnStats = document.getElementById("btnStats");
   var statsPopover = document.getElementById("statsPopover");
+  var tutorialModal = document.getElementById("tutorialModal");
+  var tutorialTitle = document.getElementById("tutorialTitle");
+  var tutorialText = document.getElementById("tutorialText");
+  var tutorialHint = document.getElementById("tutorialHint");
+  var tutorialDemo = document.getElementById("tutorialDemo");
+  var tutorialProgress = document.getElementById("tutorialProgress");
+  var btnTutorial = document.getElementById("btnTutorial");
+  var btnTutorialPrev = document.getElementById("btnTutorialPrev");
+  var btnTutorialNext = document.getElementById("btnTutorialNext");
+  var btnTutorialClose = document.getElementById("btnTutorialClose");
 
   function freshState() {
     var board = [];
@@ -1476,6 +1653,185 @@ button {
     renderStats();
   }
 
+  var tutorialIndex = 0;
+  var tutorialInteractiveDone = false;
+  var tutorialCells = [];
+  var tutorialBoardEl = null;
+  var TUTORIAL_KEY = "sanxing_tutorial_done";
+  var TUTORIAL_STEPS = [
+    {
+      title: "游戏目标",
+      text: "<p>欢迎来到<b class=\"hl\">三形连锁棋</b>！13×13 棋盘，黑方先手，双方轮流落子。</p><p>目标：让自己的 <b class=\"hl\">3 枚棋子连成一线</b>——横向、纵向或斜向都可以，先完成者获胜。看，这样就是一条获胜线 ↓</p>",
+      demo: { type: "win" }
+    },
+    {
+      title: "三种棋子",
+      text: "<p>每一步，先选一种棋子，再落子：</p><p>" + iconSVG("square") + " 方形　·　" + iconSVG("circle") + " 圆形　·　" + iconSVG("triangle") + " 三角形</p><p>棋子的形状会决定<b>对手下一步</b>能落在哪里，这就是“三形”的由来。</p>",
+      demo: { type: "shapes" }
+    },
+    {
+      title: "落点限制 · 方形",
+      text: "<p>落下一枚<b class=\"hl\">方形</b>后，对手只能落在它的<b>四个对角</b>。</p><p>看演示：白方方形在中心，高亮格就是对手可落的位置。</p>",
+      demo: { type: "offset", shape: "square" }
+    },
+    {
+      title: "落点限制 · 圆形",
+      text: "<p>落下一枚<b class=\"hl\">圆形</b>后，对手只能落在它的<b>上下左右</b>。</p>",
+      demo: { type: "offset", shape: "circle" }
+    },
+    {
+      title: "落点限制 · 三角形",
+      text: "<p>落下一枚<b class=\"hl\">三角形</b>后，对手只能落在它的<b>正上方、左下方、右下方</b>三个位置。</p>",
+      demo: { type: "offset", shape: "triangle" }
+    },
+    {
+      title: "回合流程 · 试一手",
+      text: "<p>回合流程：① 选一种棋子 → ② 在<b class=\"hl\">高亮格</b>落子 → ③ 轮到对手。</p><p><b>首手不受限制</b>，第一手可以落在任意空格。</p><p>来试一手：点击任意一个高亮格落子 ↓</p>",
+      hint: "点击一个高亮格试试看",
+      demo: { type: "interactive" },
+      interactive: true
+    },
+    {
+      title: "禁手与判负",
+      text: "<p><b class=\"hl\">禁手</b>：不能落在导致对方无任何合法落点的位置。</p><p><b class=\"hl\">判负</b>：如果对方落子后，你无论选哪种棋子、落哪个位置都会让对方无合法落点，那么判对方负、你获胜。</p><p>另外：不能占据已有棋子的格子，也不能在未轮到自己时落子。</p>",
+      demo: { type: "none" }
+    }
+  ];
+
+  function tutorialShouldAutoOpen() {
+    try { return localStorage.getItem(TUTORIAL_KEY) !== "1"; } catch (e) { return true; }
+  }
+
+  function setTutorialDone() {
+    try { localStorage.setItem(TUTORIAL_KEY, "1"); } catch (e) {}
+  }
+
+  function openTutorial() {
+    tutorialIndex = 0;
+    tutorialInteractiveDone = false;
+    renderTutorial();
+    tutorialModal.classList.add("open");
+  }
+
+  function closeTutorial(markDone) {
+    if (!tutorialModal.classList.contains("open")) return;
+    tutorialModal.classList.remove("open");
+    if (markDone) setTutorialDone();
+  }
+
+  function renderTutorial() {
+    var step = TUTORIAL_STEPS[tutorialIndex];
+    tutorialTitle.textContent = "新手教程 · " + step.title;
+    tutorialText.innerHTML = step.text;
+    tutorialHint.textContent = step.hint || "";
+    renderTutorialDemo(step);
+    renderTutorialProgress();
+    btnTutorialPrev.disabled = tutorialIndex === 0;
+    var last = tutorialIndex === TUTORIAL_STEPS.length - 1;
+    btnTutorialNext.textContent = last ? "开始对局" : "下一步";
+    btnTutorialNext.disabled = !!(step.interactive && !tutorialInteractiveDone);
+  }
+
+  function renderTutorialProgress() {
+    var html = "";
+    for (var i = 0; i < TUTORIAL_STEPS.length; i++) {
+      html += '<span class="tutorial-dot' + (i === tutorialIndex ? " active" : "") + '"></span>';
+    }
+    tutorialProgress.innerHTML = html;
+  }
+
+  function renderTutorialDemo(step) {
+    tutorialDemo.innerHTML = "";
+    tutorialCells = [];
+    tutorialBoardEl = null;
+    var demo = step.demo;
+    if (!demo || demo.type === "none") return;
+    var board = document.createElement("div");
+    board.className = "tutorial-board";
+    for (var r = 0; r < 7; r++) {
+      for (var c = 0; c < 7; c++) {
+        (function (row, col) {
+          var cell = document.createElement("button");
+          cell.type = "button";
+          cell.className = "t-cell" + ((row + col) % 2 === 1 ? " even" : "");
+          cell.addEventListener("click", function () { onTutorialCellClick(row, col); });
+          board.appendChild(cell);
+          tutorialCells.push(cell);
+        })(r, c);
+      }
+    }
+    tutorialBoardEl = board;
+    tutorialDemo.appendChild(board);
+    if (demo.type === "win") {
+      var wins = [[2, 2], [2, 3], [2, 4]];
+      for (var i = 0; i < wins.length; i++) {
+        tutorialCells[wins[i][0] * 7 + wins[i][1]].innerHTML = pieceSVG("square", "black");
+        tutorialCells[wins[i][0] * 7 + wins[i][1]].classList.add("win");
+      }
+    } else if (demo.type === "shapes") {
+      tutorialCells[2 * 7 + 2].innerHTML = pieceSVG("square", "black");
+      tutorialCells[3 * 7 + 3].innerHTML = pieceSVG("circle", "white");
+      tutorialCells[4 * 7 + 4].innerHTML = pieceSVG("triangle", "black");
+    } else if (demo.type === "offset" || demo.type === "interactive") {
+      var shape = demo.shape || "square";
+      tutorialCells[3 * 7 + 3].innerHTML = pieceSVG(shape, "white");
+      var offs = OFFSETS[shape];
+      for (var j = 0; j < offs.length; j++) {
+        var rr = 3 + offs[j][0];
+        var cc = 3 + offs[j][1];
+        if (rr >= 0 && rr < 7 && cc >= 0 && cc < 7) {
+          tutorialCells[rr * 7 + cc].classList.add("legal");
+        }
+      }
+    }
+  }
+
+  function onTutorialCellClick(r, c) {
+    var step = TUTORIAL_STEPS[tutorialIndex];
+    if (!step.interactive) return;
+    var idx = r * 7 + c;
+    if (idx < 0 || idx >= tutorialCells.length) return;
+    var cell = tutorialCells[idx];
+    if (cell.classList.contains("legal")) {
+      if (!tutorialInteractiveDone) {
+        cell.innerHTML = pieceSVG("circle", "black");
+        tutorialInteractiveDone = true;
+        tutorialHint.textContent = "很好！你完成了一次落子。";
+        btnTutorialNext.disabled = false;
+      }
+    } else {
+      tutorialHint.textContent = "这个位置不能落，试试高亮格。";
+      if (tutorialBoardEl) {
+        tutorialBoardEl.classList.remove("shake");
+        void tutorialBoardEl.offsetWidth;
+        tutorialBoardEl.classList.add("shake");
+      }
+    }
+  }
+
+  function tutorialNext() {
+    if (btnTutorialNext.disabled) return;
+    if (tutorialIndex < TUTORIAL_STEPS.length - 1) {
+      tutorialIndex++;
+      tutorialInteractiveDone = false;
+      renderTutorial();
+    } else {
+      closeTutorial(true);
+    }
+  }
+
+  function tutorialPrev() {
+    if (tutorialIndex > 0) {
+      tutorialIndex--;
+      tutorialInteractiveDone = false;
+      renderTutorial();
+    }
+  }
+
+  function tutorialSkip() {
+    closeTutorial(true);
+  }
+
   function showEnd() {
     if (state.winner === "draw") {
       endTitle.textContent = "平局";
@@ -1545,6 +1901,7 @@ button {
       endOverlay.classList.remove("open");
       statsPopover.classList.remove("open");
       btnStats.setAttribute("aria-expanded", "false");
+      closeTutorial(true);
     }
   });
 
@@ -1563,6 +1920,16 @@ button {
     btnStats.setAttribute("aria-expanded", "false");
   });
   statsPopover.addEventListener("click", function (e) { e.stopPropagation(); });
+  btnTutorial.addEventListener("click", openTutorial);
+  btnTutorialNext.addEventListener("click", tutorialNext);
+  btnTutorialPrev.addEventListener("click", tutorialPrev);
+  btnTutorialClose.addEventListener("click", tutorialSkip);
+  tutorialModal.addEventListener("click", function (e) {
+    if (e.target === tutorialModal) tutorialSkip();
+  });
+  if (tutorialShouldAutoOpen()) {
+    setTimeout(function () { openTutorial(); }, 300);
+  }
 })();
 </script>
 </body>
