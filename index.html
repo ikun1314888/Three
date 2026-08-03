@@ -1962,7 +1962,7 @@ button {
     if (aiThinking && mode === "pve") return "电脑思考中…";
     if (mode === "online") {
       if (onlinePhase === "waiting") {
-        return onlineAmHost ? "房间已创建，等待对手加入…" : "正在连接房间…";
+        return onlineAmHost ? "房间已创建，等待对手加入…" : (onlineAutoJoin ? "正在通过邀请加入房间…" : "正在连接房间…");
       }
       if (onlinePhase === "ready") {
         if (onlineMeReady) return onlineOppReady ? "双方已准备，掷骰中…" : "已准备，等待对方准备…";
@@ -2569,10 +2569,15 @@ button {
   var onlineUndoPending = false;
   var onlineRematchPending = false;
   var onlineRequestKind = null;
+  var onlineAutoJoin = false;
+  var onlineAutoJoinCode = null;
+  var onlineAutoJoinRetries = 0;
+  var onlineAutoJoinTimer = null;
 
   function createOnlineRoom() {
     if (mode !== "online") return;
     if (typeof Peer === "undefined") { showOnlineError("联机组件加载失败，请刷新页面重试"); return; }
+    clearAutoJoin();
     onlineAmHost = true;
     onlineCode = makeRoomCode();
     onlinePhase = "waiting";
@@ -2628,6 +2633,7 @@ button {
         return;
       }
       if (err && err.type === "peer-unavailable" && !isHost) {
+        if (tryAutoJoinRetry()) return;
         handleOnlineError("房间不存在，请检查房间码");
         return;
       }
@@ -2646,6 +2652,7 @@ button {
   function bindOnlineConn(conn) {
     conn.on("open", function () {
       clearJoinTimer();
+      clearAutoJoin();
       if (onlinePhase === "waiting") {
         onlinePhase = "ready";
         onlineMeReady = false;
@@ -3145,6 +3152,7 @@ button {
 
   function resetOnlineState() {
     clearJoinTimer();
+    clearAutoJoin();
     clearOnlineTimer();
     closeDiceModal();
     closeOnlineRequest();
@@ -3177,6 +3185,7 @@ button {
 
   function handleOnlineError(msg) {
     cleanupOnlinePeer();
+    clearAutoJoin();
     clearOnlineTimer();
     closeDiceModal();
     closeOnlineRequest();
@@ -3214,6 +3223,7 @@ button {
     clearJoinTimer();
     onlineJoinTimer = setTimeout(function () {
       if (onlinePhase === "waiting" && !onlineAmHost && !onlineMyColor) {
+        if (tryAutoJoinRetry()) return;
         handleOnlineError("未找到房间或房间已满");
       }
     }, ONLINE.joinTimeoutMs);
@@ -3223,7 +3233,27 @@ button {
     if (onlineJoinTimer) { clearTimeout(onlineJoinTimer); onlineJoinTimer = null; }
   }
 
+  function tryAutoJoinRetry() {
+    if (!onlineAutoJoin || !onlineAutoJoinCode || onlineAutoJoinRetries >= 5) return false;
+    onlineAutoJoinRetries++;
+    if (onlineAutoJoinTimer) clearTimeout(onlineAutoJoinTimer);
+    onlineAutoJoinTimer = setTimeout(function () {
+      if (onlineAutoJoin && onlineAutoJoinCode && onlinePhase !== "playing") {
+        joinOnlineRoom(onlineAutoJoinCode);
+      }
+    }, 3000);
+    return true;
+  }
+
+  function clearAutoJoin() {
+    onlineAutoJoin = false;
+    onlineAutoJoinCode = null;
+    onlineAutoJoinRetries = 0;
+    if (onlineAutoJoinTimer) { clearTimeout(onlineAutoJoinTimer); onlineAutoJoinTimer = null; }
+  }
+
   function openJoinModal() {
+    clearAutoJoin();
     joinCodeInput.value = "";
     joinError.textContent = "";
     joinModal.classList.add("open");
@@ -3537,8 +3567,9 @@ button {
   var inviteCode = roomParam();
   if (inviteCode) {
     setMode("online");
-    openJoinModal();
-    joinCodeInput.value = inviteCode;
+    onlineAutoJoin = true;
+    onlineAutoJoinCode = inviteCode;
+    joinOnlineRoom(inviteCode);
     try { history.replaceState(null, "", location.pathname); } catch (e) {}
   }
   if (!inviteCode && tutorialShouldAutoOpen()) {
