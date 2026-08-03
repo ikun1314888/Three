@@ -227,6 +227,13 @@ button {
   display: flex;
 }
 
+.pve-group {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: nowrap;
+}
+
 .cfg-label {
   font-size: 13px;
   color: var(--text-secondary);
@@ -1143,7 +1150,8 @@ button {
     gap: 4px;
   }
 
-  .room-actions .btn-ghost {
+  .room-actions .btn-ghost,
+  .room-actions .btn-primary {
     padding: 5px 9px;
     font-size: 12px;
   }
@@ -1235,16 +1243,20 @@ button {
       <button type="button" class="seg-btn" data-mode="pve" aria-pressed="false">人机对战</button>
     </div>
     <div class="pve-only" id="pveSettings">
-      <span class="cfg-label">执子</span>
-      <div class="seg" role="group" aria-label="执子方">
-        <button type="button" class="seg-btn selected" data-side="black" aria-pressed="true">执黑先手</button>
-        <button type="button" class="seg-btn" data-side="white" aria-pressed="false">执白后手</button>
+      <div class="pve-group">
+        <span class="cfg-label">执子</span>
+        <div class="seg" role="group" aria-label="执子方">
+          <button type="button" class="seg-btn selected" data-side="black" aria-pressed="true">执黑先手</button>
+          <button type="button" class="seg-btn" data-side="white" aria-pressed="false">执白后手</button>
+        </div>
       </div>
-      <span class="cfg-label">难度</span>
-      <div class="seg" role="group" aria-label="AI 难度">
-        <button type="button" class="seg-btn" data-diff="easy" aria-pressed="false">简单</button>
-        <button type="button" class="seg-btn selected" data-diff="medium" aria-pressed="true">中等</button>
-        <button type="button" class="seg-btn" data-diff="hard" aria-pressed="false">困难</button>
+      <div class="pve-group">
+        <span class="cfg-label">难度</span>
+        <div class="seg" role="group" aria-label="AI 难度">
+          <button type="button" class="seg-btn" data-diff="easy" aria-pressed="false">简单</button>
+          <button type="button" class="seg-btn selected" data-diff="medium" aria-pressed="true">中等</button>
+          <button type="button" class="seg-btn" data-diff="hard" aria-pressed="false">困难</button>
+        </div>
       </div>
     </div>
   </div>
@@ -1281,14 +1293,15 @@ button {
   </section>
 
   <div class="room-bar" id="roomBar">
-    <span class="room-code-label">房间码</span>
-    <span class="room-code" id="roomCodeText"></span>
-    <button type="button" class="btn-ghost btn-sm" id="btnCopyCode">复制</button>
-    <span class="room-status" id="roomStatusText"></span>
-    <span class="room-timer hidden" id="onlineTimerText">步时 03:00</span>
-    <div class="room-actions">
-      <button type="button" class="btn-ghost btn-sm hidden" id="btnReady">准备</button>
-      <button type="button" class="btn-ghost btn-sm hidden" id="btnRematch">再来一局</button>
+      <span class="room-code-label">房间码</span>
+      <span class="room-code" id="roomCodeText"></span>
+      <button type="button" class="btn-ghost btn-sm" id="btnCopyCode">复制</button>
+      <button type="button" class="btn-ghost btn-sm" id="btnShare">分享</button>
+      <span class="room-status" id="roomStatusText"></span>
+      <span class="room-timer hidden" id="onlineTimerText">步时 03:00</span>
+      <div class="room-actions">
+      <button type="button" class="btn-primary btn-sm hidden" id="btnReady">准备</button>
+      <button type="button" class="btn-primary btn-sm hidden" id="btnRematch">再来一局</button>
       <button type="button" class="btn-ghost btn-sm hidden" id="btnUndoRoom">悔棋</button>
       <button type="button" class="btn-ghost btn-sm hidden" id="btnSurrender">认输</button>
       <button type="button" class="btn-ghost btn-sm" id="btnLeaveRoom">离开</button>
@@ -1565,6 +1578,7 @@ button {
   var roomCodeText = document.getElementById("roomCodeText");
   var roomStatusText = document.getElementById("roomStatusText");
   var btnCopyCode = document.getElementById("btnCopyCode");
+  var btnShare = document.getElementById("btnShare");
   var btnLeaveRoom = document.getElementById("btnLeaveRoom");
   var btnCreateRoom = document.getElementById("btnCreateRoom");
   var btnJoinRoom = document.getElementById("btnJoinRoom");
@@ -2058,6 +2072,7 @@ button {
     var canSurrender = mode === "online" && onlinePlaying && !state.winner;
     btnSurrender.classList.toggle("hidden", !canSurrender);
     btnSurrender.disabled = !canSurrender;
+    btnNew.classList.toggle("hidden", mode === "online");
     btnNew.disabled = onlineActive;
     pveSettings.classList.toggle("visible", mode === "pve");
     onlineLobby.classList.toggle("visible", mode === "online" && onlinePhase === "idle");
@@ -3225,32 +3240,66 @@ button {
     joinOnlineRoom(code);
   }
 
+  function copyText(text, done) {
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+      navigator.clipboard.writeText(text).then(done, function () { fallbackCopyText(text, done); });
+    } else {
+      fallbackCopyText(text, done);
+    }
+  }
+
+  function fallbackCopyText(text, done) {
+    try {
+      var ta = document.createElement("textarea");
+      ta.value = text;
+      ta.style.position = "fixed";
+      ta.style.opacity = "0";
+      document.body.appendChild(ta);
+      ta.select();
+      document.execCommand("copy");
+      document.body.removeChild(ta);
+      done();
+    } catch (e) {
+      try { window.prompt("复制内容", text); } catch (e2) {}
+      done();
+    }
+  }
+
   function copyRoomCode() {
     if (!onlineCode) return;
     var done = function () {
       btnCopyCode.textContent = "已复制";
       setTimeout(function () { btnCopyCode.textContent = "复制"; }, 1500);
     };
-    if (navigator.clipboard && navigator.clipboard.writeText) {
-      navigator.clipboard.writeText(onlineCode).then(done, function () { fallbackCopy(); });
-    } else {
-      fallbackCopy();
+    copyText(onlineCode, done);
+  }
+
+  function roomInviteUrl() {
+    if (!onlineCode) return "";
+    return location.origin + location.pathname + "?room=" + onlineCode;
+  }
+
+  function shareRoomLink() {
+    if (!onlineCode) return;
+    var url = roomInviteUrl();
+    var done = function () {
+      btnShare.textContent = "已复制";
+      setTimeout(function () { btnShare.textContent = "分享"; }, 1500);
+    };
+    if (navigator.share) {
+      navigator.share({
+        title: "三形连锁棋",
+        text: "来和我下一局三形连锁棋，房间码 " + onlineCode,
+        url: url
+      }).then(done, function () { copyText(url, done); });
+      return;
     }
-    function fallbackCopy() {
-      try {
-        var ta = document.createElement("textarea");
-        ta.value = onlineCode;
-        ta.style.position = "fixed";
-        ta.style.opacity = "0";
-        document.body.appendChild(ta);
-        ta.select();
-        document.execCommand("copy");
-        document.body.removeChild(ta);
-        done();
-      } catch (e) {
-        try { window.prompt("房间码", onlineCode); } catch (e2) {}
-      }
-    }
+    copyText(url, done);
+  }
+
+  function roomParam() {
+    var m = (location.search || "").match(/[?&]room=([A-Za-z0-9]{5})/);
+    return m ? m[1].toUpperCase() : null;
   }
 
   function showEnd() {
@@ -3382,6 +3431,7 @@ button {
   btnJoinConfirm.addEventListener("click", confirmJoin);
   joinCodeInput.addEventListener("keydown", function (e) { if (e.key === "Enter") confirmJoin(); });
   btnCopyCode.addEventListener("click", copyRoomCode);
+  btnShare.addEventListener("click", shareRoomLink);
   btnLeaveRoom.addEventListener("click", leaveOnlineRoom);
   btnReady.addEventListener("click", function () {
     if (mode !== "online" || onlinePhase !== "ready" || onlineMeReady) return;
@@ -3481,7 +3531,14 @@ button {
     leaveRoom: leaveOnlineRoom,
     reset: resetOnlineState
   };
-  if (tutorialShouldAutoOpen()) {
+  var inviteCode = roomParam();
+  if (inviteCode) {
+    setMode("online");
+    openJoinModal();
+    joinCodeInput.value = inviteCode;
+    try { history.replaceState(null, "", location.pathname); } catch (e) {}
+  }
+  if (!inviteCode && tutorialShouldAutoOpen()) {
     setTimeout(function () { openTutorial(); }, 300);
   }
 })();
