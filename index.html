@@ -2074,6 +2074,9 @@ button {
     btnSurrender.disabled = !canSurrender;
     btnNew.classList.toggle("hidden", mode === "online");
     btnNew.disabled = onlineActive;
+    var roomBothIn = mode === "online" && onlinePhase !== "idle" && onlinePhase !== "waiting";
+    btnShare.classList.toggle("hidden", roomBothIn);
+    btnCopyCode.classList.toggle("hidden", roomBothIn);
     pveSettings.classList.toggle("visible", mode === "pve");
     onlineLobby.classList.toggle("visible", mode === "online" && onlinePhase === "idle");
     roomBar.classList.toggle("visible", onlineActive);
