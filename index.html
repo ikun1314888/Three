@@ -936,28 +936,64 @@ button {
   width: 64px;
   height: 64px;
   transform-style: preserve-3d;
+  transform: rotateX(-25deg) rotateY(-35deg) rotateZ(5deg);
+  will-change: transform;
 }
 
 .dice-face {
   position: absolute;
   inset: 0;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-size: 38px;
-  line-height: 1;
-  background-color: var(--bg-soft);
-  border: 1px solid var(--border-subtle);
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  grid-template-rows: repeat(3, 1fr);
+  padding: 8px;
   border-radius: 10px;
+  background: linear-gradient(160deg, #ffffff 0%, #faf7f2 18%, #f2ede4 45%, #eae4d9 75%, #e3dccf 100%);
+  border: 1.5px solid #cfc8bb;
+  box-shadow:
+    inset 0 0 18px rgba(255, 255, 255, 0.75),
+    inset 0 0 6px rgba(0, 0, 0, 0.06),
+    0 0 0 1px rgba(0, 0, 0, 0.04);
   user-select: none;
+  backface-visibility: visible;
 }
 
-.dice-face.f1 { transform: rotateY(0deg) translateZ(32px); }
-.dice-face.f6 { transform: rotateY(180deg) translateZ(32px); }
-.dice-face.f3 { transform: rotateY(90deg) translateZ(32px); }
-.dice-face.f4 { transform: rotateY(-90deg) translateZ(32px); }
-.dice-face.f2 { transform: rotateX(90deg) translateZ(32px); }
-.dice-face.f5 { transform: rotateX(-90deg) translateZ(32px); }
+.dice-face.face-front { transform: translateZ(32px); }
+.dice-face.face-back { transform: rotateY(180deg) translateZ(32px); }
+.dice-face.face-right { transform: rotateY(90deg) translateZ(32px); }
+.dice-face.face-left { transform: rotateY(-90deg) translateZ(32px); }
+.dice-face.face-top { transform: rotateX(90deg) translateZ(32px); }
+.dice-face.face-bottom { transform: rotateX(-90deg) translateZ(32px); }
+
+.pip {
+  width: 11px;
+  height: 11px;
+  border-radius: 50%;
+  background: radial-gradient(circle at 38% 32%, #4a4a4a 0%, #222222 55%, #0c0c0c 100%);
+  box-shadow:
+    inset 0 1px 2px rgba(255, 255, 255, 0.12),
+    0 1px 2px rgba(0, 0, 0, 0.35);
+  place-self: center;
+}
+
+.pip-pos-center { grid-column: 2; grid-row: 2; }
+.pip-pos-top-left { grid-column: 1; grid-row: 1; }
+.pip-pos-top-right { grid-column: 3; grid-row: 1; }
+.pip-pos-bottom-left { grid-column: 1; grid-row: 3; }
+.pip-pos-bottom-right { grid-column: 3; grid-row: 3; }
+.pip-pos-mid-left { grid-column: 1; grid-row: 2; }
+.pip-pos-mid-right { grid-column: 3; grid-row: 2; }
+.pip-pos-top-center { grid-column: 2; grid-row: 1; }
+.pip-pos-bottom-center { grid-column: 2; grid-row: 3; }
+
+.dice-shadow {
+  width: 72px;
+  height: 13px;
+  border-radius: 50%;
+  background: radial-gradient(ellipse, rgba(0, 0, 0, 0.38) 0%, rgba(0, 0, 0, 0.15) 55%, transparent 75%);
+  filter: blur(3px);
+  pointer-events: none;
+}
 
 .dice-value {
   font-size: 15px;
@@ -1323,26 +1359,28 @@ button {
       <div class="dice-side">
         <span class="dice-side-label">我</span>
         <div class="dice-cube" id="diceCubeMine">
-          <div class="dice-face f1">⚀</div>
-          <div class="dice-face f2">⚁</div>
-          <div class="dice-face f3">⚂</div>
-          <div class="dice-face f4">⚃</div>
-          <div class="dice-face f5">⚄</div>
-          <div class="dice-face f6">⚅</div>
+          <div class="dice-face face-front"><span class="pip pip-pos-center"></span></div>
+          <div class="dice-face face-back"><span class="pip pip-pos-top-left"></span><span class="pip pip-pos-top-right"></span><span class="pip pip-pos-bottom-left"></span><span class="pip pip-pos-bottom-right"></span><span class="pip pip-pos-mid-left"></span><span class="pip pip-pos-mid-right"></span></div>
+          <div class="dice-face face-right"><span class="pip pip-pos-top-left"></span><span class="pip pip-pos-top-right"></span><span class="pip pip-pos-bottom-left"></span><span class="pip pip-pos-bottom-right"></span><span class="pip pip-pos-center"></span></div>
+          <div class="dice-face face-left"><span class="pip pip-pos-top-left"></span><span class="pip pip-pos-bottom-right"></span></div>
+          <div class="dice-face face-top"><span class="pip pip-pos-top-left"></span><span class="pip pip-pos-bottom-right"></span><span class="pip pip-pos-center"></span></div>
+          <div class="dice-face face-bottom"><span class="pip pip-pos-top-left"></span><span class="pip pip-pos-top-right"></span><span class="pip pip-pos-bottom-left"></span><span class="pip pip-pos-bottom-right"></span></div>
         </div>
+        <span class="dice-shadow"></span>
         <span class="dice-value" id="diceMineValue"></span>
       </div>
       <span class="dice-vs">VS</span>
       <div class="dice-side">
         <span class="dice-side-label">对方</span>
         <div class="dice-cube" id="diceCubeOpp">
-          <div class="dice-face f1">⚀</div>
-          <div class="dice-face f2">⚁</div>
-          <div class="dice-face f3">⚂</div>
-          <div class="dice-face f4">⚃</div>
-          <div class="dice-face f5">⚄</div>
-          <div class="dice-face f6">⚅</div>
+          <div class="dice-face face-front"><span class="pip pip-pos-center"></span></div>
+          <div class="dice-face face-back"><span class="pip pip-pos-top-left"></span><span class="pip pip-pos-top-right"></span><span class="pip pip-pos-bottom-left"></span><span class="pip pip-pos-bottom-right"></span><span class="pip pip-pos-mid-left"></span><span class="pip pip-pos-mid-right"></span></div>
+          <div class="dice-face face-right"><span class="pip pip-pos-top-left"></span><span class="pip pip-pos-top-right"></span><span class="pip pip-pos-bottom-left"></span><span class="pip pip-pos-bottom-right"></span><span class="pip pip-pos-center"></span></div>
+          <div class="dice-face face-left"><span class="pip pip-pos-top-left"></span><span class="pip pip-pos-bottom-right"></span></div>
+          <div class="dice-face face-top"><span class="pip pip-pos-top-left"></span><span class="pip pip-pos-bottom-right"></span><span class="pip pip-pos-center"></span></div>
+          <div class="dice-face face-bottom"><span class="pip pip-pos-top-left"></span><span class="pip pip-pos-top-right"></span><span class="pip pip-pos-bottom-left"></span><span class="pip pip-pos-bottom-right"></span></div>
         </div>
+        <span class="dice-shadow"></span>
         <span class="dice-value" id="diceOppValue"></span>
       </div>
     </div>
@@ -2655,15 +2693,55 @@ button {
     });
   }
 
-  function diceRotation(value) {
-    switch (value) {
-      case 1: return { x: 0, y: 0 };
-      case 6: return { x: 0, y: 180 };
-      case 3: return { x: 0, y: -90 };
-      case 4: return { x: 0, y: 90 };
-      case 2: return { x: -90, y: 0 };
-      default: return { x: 90, y: 0 };
+  var DICE_FACE_TARGET = {
+    1: { x: 0, y: 0 },
+    6: { x: 0, y: 180 },
+    5: { x: 0, y: -90 },
+    2: { x: 0, y: 90 },
+    3: { x: -90, y: 0 },
+    4: { x: 90, y: 0 }
+  };
+  var diceSpinState = {
+    diceCubeMine: { x: -25, y: -35, z: 5 },
+    diceCubeOpp: { x: -25, y: -35, z: 5 }
+  };
+  var diceAnimIds = {};
+
+  function normalizeDiceAngle(a) {
+    return ((a % 360) + 360) % 360;
+  }
+
+  function diceSpinTarget(current, base, minSpins, maxSpins) {
+    var nc = normalizeDiceAngle(current);
+    var nt = normalizeDiceAngle(base);
+    var diff = nt - nc;
+    if (diff > 180) diff -= 360;
+    if (diff < -180) diff += 360;
+    var spins = minSpins + Math.floor(Math.random() * (maxSpins - minSpins + 1));
+    var dir = Math.random() > 0.5 ? 1 : -1;
+    return current + diff + dir * spins * 360;
+  }
+
+  function diceZTarget(current) {
+    var z = current + (Math.random() * 2 + 1) * (Math.random() > 0.5 ? 1 : -1) * 360 + (Math.random() * 60 - 30);
+    var snap = Math.round(normalizeDiceAngle(z) / 90) * 90;
+    return z - normalizeDiceAngle(z) + snap + (Math.random() * 6 - 3);
+  }
+
+  function diceEase(t) {
+    if (t >= 1) return 1;
+    if (t < 0) return 0;
+    var base = 1 - Math.pow(1 - t, 4);
+    if (t > 0.7) {
+      var f = (t - 0.7) / 0.3;
+      var sf = 1 - Math.pow(1 - f, 5);
+      return base * (1 - sf * 0.03);
     }
+    return base;
+  }
+
+  function applyDiceTransform(cube, rot) {
+    cube.style.transform = "rotateX(" + rot.x.toFixed(3) + "deg) rotateY(" + rot.y.toFixed(3) + "deg) rotateZ(" + rot.z.toFixed(3) + "deg)";
   }
 
   function supports3d() {
@@ -2677,29 +2755,48 @@ button {
   }
 
   function animateDice(cube, value, done) {
-    var rot = diceRotation(value);
+    var base = DICE_FACE_TARGET[value] || { x: 0, y: 0 };
+    var key = cube.id;
+    if (!diceSpinState[key]) diceSpinState[key] = { x: -25, y: -35, z: 5 };
+    var state = diceSpinState[key];
     var reduced = !!(window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches);
-    if (!supports3d() || reduced || !cube.animate) {
-      cube.style.transform = "rotateX(" + rot.x + "deg) rotateY(" + rot.y + "deg)";
-      if (done) setTimeout(done, 300);
+    var hasRaf = typeof window.requestAnimationFrame === "function";
+    var duration = 1000 + Math.random() * 1000; // 随机 1~2 秒
+    if (!supports3d() || reduced || !hasRaf) {
+      state.x = base.x;
+      state.y = base.y;
+      state.z = 0;
+      applyDiceTransform(cube, state);
+      if (done) setTimeout(done, 250);
       return;
     }
-    var spins = 2 + Math.floor(Math.random() * 2);
-    var fromX = 360 * spins + rot.x + (Math.random() * 80 - 40);
-    var fromY = 360 * spins + rot.y + (Math.random() * 80 - 40);
-    cube.style.transform = "rotateX(0deg) rotateY(0deg)";
-    var anim = cube.animate(
-      [
-        { transform: "translateY(-160px) rotateX(" + fromX + "deg) rotateY(" + fromY + "deg)", offset: 0 },
-        { transform: "translateY(-30px) rotateX(" + (rot.x + 360) + "deg) rotateY(" + (rot.y + 360) + "deg)", offset: 0.75 },
-        { transform: "translateY(0px) rotateX(" + rot.x + "deg) rotateY(" + rot.y + "deg)", offset: 1 }
-      ],
-      { duration: 1500, easing: "cubic-bezier(0.2, 0.8, 0.25, 1)" }
-    );
-    anim.onfinish = function () {
-      cube.style.transform = "rotateX(" + rot.x + "deg) rotateY(" + rot.y + "deg)";
-      if (done) done();
+    var start = { x: state.x, y: state.y, z: state.z };
+    var target = {
+      x: diceSpinTarget(start.x, base.x, 3, 6),
+      y: diceSpinTarget(start.y, base.y, 3, 6),
+      z: diceZTarget(start.z)
     };
+    if (diceAnimIds[key]) window.cancelAnimationFrame(diceAnimIds[key]);
+    var startTime = performance.now();
+    function step(now) {
+      var t = Math.min((now - startTime) / duration, 1);
+      var e = diceEase(t);
+      state.x = start.x + (target.x - start.x) * e;
+      state.y = start.y + (target.y - start.y) * e;
+      state.z = start.z + (target.z - start.z) * e;
+      applyDiceTransform(cube, state);
+      if (t < 1) {
+        diceAnimIds[key] = window.requestAnimationFrame(step);
+      } else {
+        state.x = target.x;
+        state.y = target.y;
+        state.z = target.z;
+        applyDiceTransform(cube, state);
+        diceAnimIds[key] = null;
+        if (done) done();
+      }
+    }
+    diceAnimIds[key] = window.requestAnimationFrame(step);
   }
 
   function sendOnlineChoice(color) {
@@ -3143,6 +3240,7 @@ button {
     diceModalOpen: function () { return diceModal.classList.contains("open"); },
     setMoveTime: function (sec) { ONLINE.moveTimeSec = sec; },
     tickTimer: function (n) { for (var i = 0; i < n; i++) onlineTimerTickFn(); },
+    showDice: function (myVal, oppVal) { showDice(myVal, oppVal); },
     setMode: function (m) { setMode(m); },
     createRoom: createOnlineRoom,
     joinRoom: function (raw) { joinOnlineRoom(raw); },
