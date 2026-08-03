@@ -1969,7 +1969,7 @@ button {
     statusText.textContent = statusMessage();
     var onlineActive = mode === "online" && onlinePhase !== "idle";
     var onlinePlaying = mode === "online" && onlinePhase === "playing";
-    var undoOk = history.length > 0 && !state.winner && !aiThinking;
+    var undoOk = history.length >= 2 && !state.winner && !aiThinking;
     if (mode === "online") {
       undoOk = undoOk && onlinePlaying && state.current === onlineMyColor && !onlineUndoPending && !requestModal.classList.contains("open");
     }
@@ -2126,7 +2126,7 @@ button {
   }
 
   function undo() {
-    if (history.length === 0 || state.winner || aiThinking) return;
+    if (history.length < 2 || state.winner || aiThinking) return;
     if (mode === "online") {
       if (onlinePhase !== "playing" || state.current !== onlineMyColor || onlineUndoPending || requestModal.classList.contains("open")) return;
       onlineUndoPending = true;
@@ -2134,14 +2134,9 @@ button {
       render();
       return;
     }
-    if (mode === "pve") {
-      while (history.length > 0) {
-        state = history.pop();
-        if (state.current === playerColor) break;
-      }
-    } else {
-      state = history.pop();
-    }
+    // 双人/人机：回退两步（一个完整回合，双方各一手）
+    state = history.pop();
+    state = history.pop();
     notice = null;
     render();
     maybeScheduleAi();
@@ -2813,7 +2808,8 @@ button {
   }
 
   function performOnlineUndo() {
-    if (history.length === 0) return;
+    if (history.length < 2) return;
+    state = history.pop();
     state = history.pop();
     winCells = [];
     notice = null;
@@ -2838,7 +2834,7 @@ button {
     onlineRequestKind = kind;
     if (kind === "undo") {
       requestTitle.textContent = "悔棋请求";
-      requestText.textContent = "对方请求撤回最后一手棋，是否同意？";
+      requestText.textContent = "对方请求回退两步（双方各撤一手），是否同意？";
     } else {
       requestTitle.textContent = "再来一局";
       requestText.textContent = "对方请求再来一局，是否同意？";
