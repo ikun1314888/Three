@@ -2682,13 +2682,13 @@ button {
     if (myVal === oppVal) {
       diceResult.textContent = "平局，重新掷骰…";
       if (onlineAmHost) setTimeout(rollDice, 1600);
-      animateDice(diceInnerMine, myVal, function () { diceMineValue.textContent = String(myVal); });
-      animateDice(diceInnerOpp, oppVal, function () { diceOppValue.textContent = String(oppVal); });
+      animateDice(diceInnerMine, myVal, function (shown) { diceMineValue.textContent = String(shown != null ? shown : myVal); });
+      animateDice(diceInnerOpp, oppVal, function (shown) { diceOppValue.textContent = String(shown != null ? shown : oppVal); });
       return;
     }
     var iWon = myVal > oppVal;
-    animateDice(diceInnerMine, myVal, function () {
-      diceMineValue.textContent = String(myVal);
+    animateDice(diceInnerMine, myVal, function (shown) {
+      diceMineValue.textContent = String(shown != null ? shown : myVal);
       if (iWon) {
         diceResult.textContent = "你掷出 " + myVal + "，对方掷出 " + oppVal + " · 由你选择先后手";
         diceActions.classList.add("visible");
@@ -2696,8 +2696,8 @@ button {
         diceResult.textContent = "你掷出 " + myVal + "，对方掷出 " + oppVal + " · 等待对方选择…";
       }
     });
-    animateDice(diceInnerOpp, oppVal, function () {
-      diceOppValue.textContent = String(oppVal);
+    animateDice(diceInnerOpp, oppVal, function (shown) {
+      diceOppValue.textContent = String(shown != null ? shown : oppVal);
     });
   }
 
@@ -2734,17 +2734,29 @@ button {
   function diceEase(t) {
     if (t >= 1) return 1;
     if (t < 0) return 0;
-    var base = 1 - Math.pow(1 - t, 4);
-    if (t > 0.7) {
-      var f = (t - 0.7) / 0.3;
-      var sf = 1 - Math.pow(1 - f, 5);
-      return base * (1 - sf * 0.03);
+    // 翻滚阶段：前 72% 时间完成 92% 旋转（快速翻滚并初步减速）
+    if (t < 0.72) {
+      var u = t / 0.72;
+      return 0.92 * (1 - Math.pow(1 - u, 3));
     }
-    return base;
+    // 落定阶段：最后 28% 时间平滑停进标准姿态（末速度为零）
+    var v = (t - 0.72) / 0.28;
+    return 0.92 + 0.08 * (1 - Math.pow(1 - v, 3));
   }
 
   function applyDiceTransform(cube, rot) {
     cube.style.transform = "rotateX(" + rot.x.toFixed(3) + "deg) rotateY(" + rot.y.toFixed(3) + "deg) rotateZ(" + rot.z.toFixed(3) + "deg)";
+  }
+
+  // 由落定姿态反推顶面点数（标准姿态：与基准旋转相差整圈）
+  function diceTopFace(x, y, z) {
+    function norm(a) { return ((a % 360) + 360) % 360; }
+    var nx = norm(x), ny = norm(y), nz = norm(z);
+    for (var v = 1; v <= 6; v++) {
+      var b = DICE_FACE_TARGET[v];
+      if (Math.abs(nx - norm(b.x)) < 1.5 && Math.abs(ny - norm(b.y)) < 1.5 && Math.abs(nz - norm(b.z)) < 1.5) return v;
+    }
+    return null;
   }
 
   function supports3d() {
@@ -2765,12 +2777,16 @@ button {
     var reduced = !!(window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches);
     var hasRaf = typeof window.requestAnimationFrame === "function";
     var duration = 2000 + Math.random() * 1000; // 随机 2~3 秒
+    function finish() {
+      var shown = diceTopFace(state.x, state.y, state.z);
+      if (done) done(shown == null ? value : shown);
+    }
     if (!supports3d() || reduced || !hasRaf) {
       state.x = base.x;
       state.y = base.y;
       state.z = base.z;
       applyDiceTransform(cube, state);
-      if (done) setTimeout(done, 250);
+      if (done) setTimeout(finish, 250);
       return;
     }
     var start = { x: state.x, y: state.y, z: state.z };
@@ -2781,6 +2797,17 @@ button {
     };
     if (diceAnimIds[key]) window.cancelAnimationFrame(diceAnimIds[key]);
     var startTime = performance.now();
+    var watchdog = setTimeout(function () {
+      if (diceAnimIds[key]) {
+        window.cancelAnimationFrame(diceAnimIds[key]);
+        diceAnimIds[key] = null;
+        state.x = target.x;
+        state.y = target.y;
+        state.z = target.z;
+        applyDiceTransform(cube, state);
+        finish();
+      }
+    }, duration + 400);
     function step(now) {
       var t = Math.min((now - startTime) / duration, 1);
       var e = diceEase(t);
@@ -2791,12 +2818,13 @@ button {
       if (t < 1) {
         diceAnimIds[key] = window.requestAnimationFrame(step);
       } else {
+        clearTimeout(watchdog);
         state.x = target.x;
         state.y = target.y;
         state.z = target.z;
         applyDiceTransform(cube, state);
         diceAnimIds[key] = null;
-        if (done) done();
+        finish();
       }
     }
     diceAnimIds[key] = window.requestAnimationFrame(step);
