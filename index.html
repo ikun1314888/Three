@@ -758,6 +758,13 @@ button {
   display: flex;
 }
 
+.room-actions {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: nowrap;
+}
+
 .room-code-label {
   font-size: 13px;
   color: var(--text-secondary);
@@ -1132,6 +1139,15 @@ button {
     font-size: 13px;
   }
 
+  .room-actions {
+    gap: 4px;
+  }
+
+  .room-actions .btn-ghost {
+    padding: 5px 9px;
+    font-size: 12px;
+  }
+
   .type-btn {
     min-height: 72px;
   }
@@ -1270,11 +1286,13 @@ button {
     <button type="button" class="btn-ghost btn-sm" id="btnCopyCode">复制</button>
     <span class="room-status" id="roomStatusText"></span>
     <span class="room-timer hidden" id="onlineTimerText">步时 03:00</span>
-    <button type="button" class="btn-ghost btn-sm hidden" id="btnReady">准备</button>
-    <button type="button" class="btn-ghost btn-sm hidden" id="btnRematch">再来一局</button>
-    <button type="button" class="btn-ghost btn-sm hidden" id="btnUndoRoom">悔棋</button>
-    <button type="button" class="btn-ghost btn-sm hidden" id="btnSurrender">认输</button>
-    <button type="button" class="btn-ghost btn-sm" id="btnLeaveRoom">离开</button>
+    <div class="room-actions">
+      <button type="button" class="btn-ghost btn-sm hidden" id="btnReady">准备</button>
+      <button type="button" class="btn-ghost btn-sm hidden" id="btnRematch">再来一局</button>
+      <button type="button" class="btn-ghost btn-sm hidden" id="btnUndoRoom">悔棋</button>
+      <button type="button" class="btn-ghost btn-sm hidden" id="btnSurrender">认输</button>
+      <button type="button" class="btn-ghost btn-sm" id="btnLeaveRoom">离开</button>
+    </div>
   </div>
   <section class="board-wrap" id="boardWrap" aria-label="棋盘">
     <div id="board" class="board" role="grid" aria-label="13 乘 13 棋盘"></div>
