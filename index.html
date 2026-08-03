@@ -940,6 +940,13 @@ button {
   will-change: transform;
 }
 
+.dice-inner {
+  position: absolute;
+  inset: 0;
+  transform-style: preserve-3d;
+  will-change: transform;
+}
+
 .dice-face {
   position: absolute;
   inset: 0;
@@ -1359,12 +1366,14 @@ button {
       <div class="dice-side">
         <span class="dice-side-label">我</span>
         <div class="dice-cube" id="diceCubeMine">
-          <div class="dice-face face-front"><span class="pip pip-pos-center"></span></div>
-          <div class="dice-face face-back"><span class="pip pip-pos-top-left"></span><span class="pip pip-pos-top-right"></span><span class="pip pip-pos-bottom-left"></span><span class="pip pip-pos-bottom-right"></span><span class="pip pip-pos-mid-left"></span><span class="pip pip-pos-mid-right"></span></div>
-          <div class="dice-face face-right"><span class="pip pip-pos-top-left"></span><span class="pip pip-pos-top-right"></span><span class="pip pip-pos-bottom-left"></span><span class="pip pip-pos-bottom-right"></span><span class="pip pip-pos-center"></span></div>
-          <div class="dice-face face-left"><span class="pip pip-pos-top-left"></span><span class="pip pip-pos-bottom-right"></span></div>
-          <div class="dice-face face-top"><span class="pip pip-pos-top-left"></span><span class="pip pip-pos-bottom-right"></span><span class="pip pip-pos-center"></span></div>
-          <div class="dice-face face-bottom"><span class="pip pip-pos-top-left"></span><span class="pip pip-pos-top-right"></span><span class="pip pip-pos-bottom-left"></span><span class="pip pip-pos-bottom-right"></span></div>
+          <div class="dice-inner" id="diceInnerMine">
+            <div class="dice-face face-front"><span class="pip pip-pos-center"></span></div>
+            <div class="dice-face face-back"><span class="pip pip-pos-top-left"></span><span class="pip pip-pos-top-right"></span><span class="pip pip-pos-bottom-left"></span><span class="pip pip-pos-bottom-right"></span><span class="pip pip-pos-mid-left"></span><span class="pip pip-pos-mid-right"></span></div>
+            <div class="dice-face face-right"><span class="pip pip-pos-top-left"></span><span class="pip pip-pos-top-right"></span><span class="pip pip-pos-bottom-left"></span><span class="pip pip-pos-bottom-right"></span><span class="pip pip-pos-center"></span></div>
+            <div class="dice-face face-left"><span class="pip pip-pos-top-left"></span><span class="pip pip-pos-bottom-right"></span></div>
+            <div class="dice-face face-top"><span class="pip pip-pos-top-left"></span><span class="pip pip-pos-bottom-right"></span><span class="pip pip-pos-center"></span></div>
+            <div class="dice-face face-bottom"><span class="pip pip-pos-top-left"></span><span class="pip pip-pos-top-right"></span><span class="pip pip-pos-bottom-left"></span><span class="pip pip-pos-bottom-right"></span></div>
+          </div>
         </div>
         <span class="dice-shadow"></span>
         <span class="dice-value" id="diceMineValue"></span>
@@ -1373,12 +1382,14 @@ button {
       <div class="dice-side">
         <span class="dice-side-label">对方</span>
         <div class="dice-cube" id="diceCubeOpp">
-          <div class="dice-face face-front"><span class="pip pip-pos-center"></span></div>
-          <div class="dice-face face-back"><span class="pip pip-pos-top-left"></span><span class="pip pip-pos-top-right"></span><span class="pip pip-pos-bottom-left"></span><span class="pip pip-pos-bottom-right"></span><span class="pip pip-pos-mid-left"></span><span class="pip pip-pos-mid-right"></span></div>
-          <div class="dice-face face-right"><span class="pip pip-pos-top-left"></span><span class="pip pip-pos-top-right"></span><span class="pip pip-pos-bottom-left"></span><span class="pip pip-pos-bottom-right"></span><span class="pip pip-pos-center"></span></div>
-          <div class="dice-face face-left"><span class="pip pip-pos-top-left"></span><span class="pip pip-pos-bottom-right"></span></div>
-          <div class="dice-face face-top"><span class="pip pip-pos-top-left"></span><span class="pip pip-pos-bottom-right"></span><span class="pip pip-pos-center"></span></div>
-          <div class="dice-face face-bottom"><span class="pip pip-pos-top-left"></span><span class="pip pip-pos-top-right"></span><span class="pip pip-pos-bottom-left"></span><span class="pip pip-pos-bottom-right"></span></div>
+          <div class="dice-inner" id="diceInnerOpp">
+            <div class="dice-face face-front"><span class="pip pip-pos-center"></span></div>
+            <div class="dice-face face-back"><span class="pip pip-pos-top-left"></span><span class="pip pip-pos-top-right"></span><span class="pip pip-pos-bottom-left"></span><span class="pip pip-pos-bottom-right"></span><span class="pip pip-pos-mid-left"></span><span class="pip pip-pos-mid-right"></span></div>
+            <div class="dice-face face-right"><span class="pip pip-pos-top-left"></span><span class="pip pip-pos-top-right"></span><span class="pip pip-pos-bottom-left"></span><span class="pip pip-pos-bottom-right"></span><span class="pip pip-pos-center"></span></div>
+            <div class="dice-face face-left"><span class="pip pip-pos-top-left"></span><span class="pip pip-pos-bottom-right"></span></div>
+            <div class="dice-face face-top"><span class="pip pip-pos-top-left"></span><span class="pip pip-pos-bottom-right"></span><span class="pip pip-pos-center"></span></div>
+            <div class="dice-face face-bottom"><span class="pip pip-pos-top-left"></span><span class="pip pip-pos-top-right"></span><span class="pip pip-pos-bottom-left"></span><span class="pip pip-pos-bottom-right"></span></div>
+          </div>
         </div>
         <span class="dice-shadow"></span>
         <span class="dice-value" id="diceOppValue"></span>
@@ -1503,6 +1514,8 @@ button {
   var diceModal = document.getElementById("diceModal");
   var diceCubeMine = document.getElementById("diceCubeMine");
   var diceCubeOpp = document.getElementById("diceCubeOpp");
+  var diceInnerMine = document.getElementById("diceInnerMine");
+  var diceInnerOpp = document.getElementById("diceInnerOpp");
   var diceMineValue = document.getElementById("diceMineValue");
   var diceOppValue = document.getElementById("diceOppValue");
   var diceResult = document.getElementById("diceResult");
@@ -2674,12 +2687,12 @@ button {
     if (myVal === oppVal) {
       diceResult.textContent = "平局，重新掷骰…";
       if (onlineAmHost) setTimeout(rollDice, 1600);
-      animateDice(diceCubeMine, myVal, function () { diceMineValue.textContent = String(myVal); });
-      animateDice(diceCubeOpp, oppVal, function () { diceOppValue.textContent = String(oppVal); });
+      animateDice(diceInnerMine, myVal, function () { diceMineValue.textContent = String(myVal); });
+      animateDice(diceInnerOpp, oppVal, function () { diceOppValue.textContent = String(oppVal); });
       return;
     }
     var iWon = myVal > oppVal;
-    animateDice(diceCubeMine, myVal, function () {
+    animateDice(diceInnerMine, myVal, function () {
       diceMineValue.textContent = String(myVal);
       if (iWon) {
         diceResult.textContent = "你掷出 " + myVal + "，对方掷出 " + oppVal + " · 由你选择先后手";
@@ -2688,22 +2701,23 @@ button {
         diceResult.textContent = "你掷出 " + myVal + "，对方掷出 " + oppVal + " · 等待对方选择…";
       }
     });
-    animateDice(diceCubeOpp, oppVal, function () {
+    animateDice(diceInnerOpp, oppVal, function () {
       diceOppValue.textContent = String(oppVal);
     });
   }
 
   var DICE_FACE_TARGET = {
-    1: { x: 0, y: 0 },
-    6: { x: 0, y: 180 },
-    5: { x: 0, y: -90 },
-    2: { x: 0, y: 90 },
-    3: { x: -90, y: 0 },
-    4: { x: 90, y: 0 }
+    // 把该面转到顶面(+Y)：外层平放姿态固定，内层旋转决定顶面点数
+    1: { x: -90, y: 0, z: 0 },
+    6: { x: 90, y: 0, z: 0 },
+    5: { x: 0, y: 0, z: 90 },
+    2: { x: 0, y: 0, z: -90 },
+    3: { x: 0, y: 0, z: 0 },
+    4: { x: 180, y: 0, z: 0 }
   };
   var diceSpinState = {
-    diceCubeMine: { x: -25, y: -35, z: 5 },
-    diceCubeOpp: { x: -25, y: -35, z: 5 }
+    diceInnerMine: { x: 0, y: 0, z: 0 },
+    diceInnerOpp: { x: 0, y: 0, z: 0 }
   };
   var diceAnimIds = {};
 
@@ -2720,12 +2734,6 @@ button {
     var spins = minSpins + Math.floor(Math.random() * (maxSpins - minSpins + 1));
     var dir = Math.random() > 0.5 ? 1 : -1;
     return current + diff + dir * spins * 360;
-  }
-
-  function diceZTarget(current) {
-    var z = current + (Math.random() * 2 + 1) * (Math.random() > 0.5 ? 1 : -1) * 360 + (Math.random() * 60 - 30);
-    var snap = Math.round(normalizeDiceAngle(z) / 90) * 90;
-    return z - normalizeDiceAngle(z) + snap + (Math.random() * 6 - 3);
   }
 
   function diceEase(t) {
@@ -2755,26 +2763,26 @@ button {
   }
 
   function animateDice(cube, value, done) {
-    var base = DICE_FACE_TARGET[value] || { x: 0, y: 0 };
+    var base = DICE_FACE_TARGET[value] || { x: 0, y: 0, z: 0 };
     var key = cube.id;
-    if (!diceSpinState[key]) diceSpinState[key] = { x: -25, y: -35, z: 5 };
+    if (!diceSpinState[key]) diceSpinState[key] = { x: 0, y: 0, z: 0 };
     var state = diceSpinState[key];
     var reduced = !!(window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches);
     var hasRaf = typeof window.requestAnimationFrame === "function";
-    var duration = 1000 + Math.random() * 1000; // 随机 1~2 秒
+    var duration = 2000 + Math.random() * 1000; // 随机 2~3 秒
     if (!supports3d() || reduced || !hasRaf) {
       state.x = base.x;
       state.y = base.y;
-      state.z = 0;
+      state.z = base.z;
       applyDiceTransform(cube, state);
       if (done) setTimeout(done, 250);
       return;
     }
     var start = { x: state.x, y: state.y, z: state.z };
     var target = {
-      x: diceSpinTarget(start.x, base.x, 3, 6),
-      y: diceSpinTarget(start.y, base.y, 3, 6),
-      z: diceZTarget(start.z)
+      x: diceSpinTarget(start.x, base.x, 4, 8),
+      y: diceSpinTarget(start.y, base.y, 4, 8),
+      z: diceSpinTarget(start.z, base.z, 4, 8)
     };
     if (diceAnimIds[key]) window.cancelAnimationFrame(diceAnimIds[key]);
     var startTime = performance.now();
