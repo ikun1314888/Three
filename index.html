@@ -1880,7 +1880,7 @@ button {
       if (onlinePhase !== "playing") return "联机对战";
       if (onlineUndoPending) return "已发送悔棋请求，等待对方回应…";
       if (onlineRematchPending) return "已发送再来一局请求，等待对方回应…";
-      if (state.current !== onlineMyColor) return sideName(state.current) + "回合 · 等待对方落子…";
+      if (!state.winner && state.current !== onlineMyColor) return sideName(state.current) + "回合 · 等待对方落子…";
     }
     if (notice) return notice;
     if (state.winner) {
@@ -1964,7 +1964,7 @@ button {
     }
 
     var activeColor = state.winner && state.winner !== "draw" ? state.winner : state.current;
-    chipLabel.textContent = state.winner && state.winner === "draw" ? "平局" : sideName(activeColor) + "回合";
+    chipLabel.textContent = state.winner ? (state.winner === "draw" ? "平局" : "对局结束") : sideName(activeColor) + "回合";
     chipDot.style.background = COLOR_FILL[activeColor];
     statusText.textContent = statusMessage();
     var onlineActive = mode === "online" && onlinePhase !== "idle";
