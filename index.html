@@ -1559,7 +1559,7 @@ button {
       <h2 id="achievementsTitle">成就</h2>
       <button type="button" class="btn-ghost" data-close-ach>关闭</button>
     </div>
-    <p class="achievements-note">仅统计人机对战，从本功能上线后开始计数</p>
+    <p class="achievements-note">仅统计人机对战 · 已完成优先，其余由易到难排列</p>
     <div id="achievementsBody" class="achievements-body"></div>
   </div>
 </div>
@@ -1686,27 +1686,29 @@ button {
   var onlineStats = { w: 0, l: 0, d: 0 };
   var statsTab = "pve";
   var achievementsKey = "sanxing_achievements_v1";
+  // 新增成就请按难度由易到难插入到本数组对应位置（难度由开发者评估，不进前端数据）；
+  // 展示排序：已完成成就优先，其余按本数组顺序（即难度顺序）排列
   var ACHIEVEMENTS = [
+    { id: "tutorial", name: "初入棋门", desc: "完成新手教程", icon: "📖", target: 1, key: "tutorialDone" },
     { id: "first_win", name: "首战告捷", desc: "在人机对战中获胜 1 局", icon: "🏆", target: 1, key: "wins" },
-    { id: "win_10", name: "小有所成", desc: "累计获胜 10 局", icon: "🎖️", target: 10, key: "wins" },
-    { id: "win_50", name: "常胜将军", desc: "累计获胜 50 局", icon: "🏅", target: 50, key: "wins" },
-    { id: "win_100", name: "百战百胜", desc: "累计获胜 100 局", icon: "💯", target: 100, key: "wins" },
-    { id: "games_100", name: "棋痴", desc: "完成 100 局人机对战", icon: "♟️", target: 100, key: "games" },
-    { id: "streak_3", name: "三连胜", desc: "人机对战连胜 3 局", icon: "🔥", target: 3, key: "bestStreak" },
-    { id: "streak_5", name: "五连胜", desc: "人机对战连胜 5 局", icon: "⚡", target: 5, key: "bestStreak" },
-    { id: "streak_10", name: "十连胜", desc: "人机对战连胜 10 局", icon: "👑", target: 10, key: "bestStreak" },
     { id: "beat_easy", name: "初试锋芒", desc: "击败简单难度 AI", icon: "🌱", target: 1, key: "winsEasy" },
     { id: "beat_medium", name: "渐露头角", desc: "击败中等难度 AI", icon: "🌿", target: 1, key: "winsMedium" },
-    { id: "beat_hard", name: "登峰造极", desc: "击败困难难度 AI", icon: "🏔️", target: 1, key: "winsHard" },
-    { id: "hard_10", name: "困难大师", desc: "困难难度获胜 10 局", icon: "🧗", target: 10, key: "winsHard" },
-    { id: "deadlock_1", name: "不战而胜", desc: "以禁手判负获胜 1 局", icon: "🚫", target: 1, key: "winsDeadlock" },
-    { id: "long_20", name: "鏖战到底", desc: "单局落子数达到 20 手", icon: "⏳", target: 20, key: "bestLongPly" },
-    { id: "draw_1", name: "和平主义者", desc: "与电脑弈成平局 1 局", icon: "🤝", target: 1, key: "draws" },
+    { id: "win_10", name: "小有所成", desc: "累计获胜 10 局", icon: "🎖️", target: 10, key: "wins" },
+    { id: "streak_3", name: "三连胜", desc: "人机对战连胜 3 局", icon: "🔥", target: 3, key: "bestStreak" },
     { id: "undo_10", name: "悔棋常客", desc: "累计悔棋 10 次", icon: "↩️", target: 10, key: "undos" },
+    { id: "draw_1", name: "和平主义者", desc: "与电脑弈成平局 1 局", icon: "🤝", target: 1, key: "draws" },
+    { id: "deadlock_1", name: "不战而胜", desc: "以禁手判负获胜 1 局", icon: "🚫", target: 1, key: "winsDeadlock" },
+    { id: "beat_hard", name: "登峰造极", desc: "击败困难难度 AI", icon: "🏔️", target: 1, key: "winsHard" },
+    { id: "long_20", name: "鏖战到底", desc: "单局落子数达到 20 手", icon: "⏳", target: 20, key: "bestLongPly" },
+    { id: "streak_5", name: "五连胜", desc: "人机对战连胜 5 局", icon: "⚡", target: 5, key: "bestStreak" },
     { id: "undo_50", name: "悔棋高手", desc: "累计悔棋 50 次", icon: "🔁", target: 50, key: "undos" },
     { id: "moves_500", name: "千锤百炼", desc: "累计落子 500 手", icon: "✍️", target: 500, key: "moves" },
+    { id: "win_50", name: "常胜将军", desc: "累计获胜 50 局", icon: "🏅", target: 50, key: "wins" },
+    { id: "hard_10", name: "困难大师", desc: "困难难度获胜 10 局", icon: "🧗", target: 10, key: "winsHard" },
+    { id: "streak_10", name: "十连胜", desc: "人机对战连胜 10 局", icon: "👑", target: 10, key: "bestStreak" },
     { id: "moves_1000", name: "棋艺大成", desc: "累计落子 1000 手", icon: "🌟", target: 1000, key: "moves" },
-    { id: "tutorial", name: "初入棋门", desc: "完成新手教程", icon: "📖", target: 1, key: "tutorialDone" }
+    { id: "win_100", name: "百战百胜", desc: "累计获胜 100 局", icon: "💯", target: 100, key: "wins" },
+    { id: "games_100", name: "棋痴", desc: "完成 100 局人机对战", icon: "♟️", target: 100, key: "games" }
   ];
   var achData = {
     unlocked: {},
@@ -2570,9 +2572,16 @@ button {
   }
 
   function renderAchievements() {
+    var order = ACHIEVEMENTS.map(function (a, i) { return { a: a, i: i }; });
+    order.sort(function (x, y) {
+      var xu = achData.unlocked[x.a.id] ? 0 : 1;
+      var yu = achData.unlocked[y.a.id] ? 0 : 1;
+      if (xu !== yu) return xu - yu;
+      return x.i - y.i;
+    });
     var html = "";
-    for (var i = 0; i < ACHIEVEMENTS.length; i++) {
-      var a = ACHIEVEMENTS[i];
+    for (var i = 0; i < order.length; i++) {
+      var a = order[i].a;
       var unlocked = !!achData.unlocked[a.id];
       var cur = achData.counters[a.key];
       if (a.key === "tutorialDone") cur = cur ? 1 : 0;
@@ -3865,6 +3874,7 @@ button {
     reset: resetOnlineState,
     achCounters: function () { return achData.counters; },
     achUnlocked: function () { return achData.unlocked; },
+    achList: function () { return ACHIEVEMENTS; },
     applyMoveFn: function (r, c, type) { applyMove(r, c, type); },
     cancelAi: function () {
       if (aiTimer) { clearTimeout(aiTimer); aiTimer = null; }
