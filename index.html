@@ -569,6 +569,13 @@ button {
   margin: 0 auto;
 }
 
+.board-actions {
+  display: flex;
+  justify-content: center;
+  gap: 10px;
+  margin-top: 14px;
+}
+
 .board {
   display: grid;
   grid-template-columns: repeat(13, 1fr);
@@ -1333,8 +1340,6 @@ button {
     <h1>三形连锁棋</h1>
   </div>
   <div class="header-actions">
-    <button type="button" id="btnUndo" class="btn-ghost">悔棋</button>
-    <button type="button" id="btnNew" class="btn-ghost">新开局</button>
     <button type="button" id="btnRules" class="btn-ghost">规则</button>
     <button type="button" class="btn-ghost" id="btnTutorial">教程</button>
     <button type="button" class="btn-ghost" id="btnAchievements">成就</button>
@@ -1430,6 +1435,10 @@ button {
   <section class="board-wrap" id="boardWrap" aria-label="棋盘">
     <div id="board" class="board" role="grid" aria-label="13 乘 13 棋盘"></div>
   </section>
+  <div class="board-actions" id="boardActions">
+    <button type="button" id="btnUndo" class="btn-ghost">悔棋</button>
+    <button type="button" id="btnNew" class="btn-ghost">新开局</button>
+  </div>
 
 
 
@@ -1759,6 +1768,7 @@ button {
   var joinError = document.getElementById("joinError");
   var btnJoinConfirm = document.getElementById("btnJoinConfirm");
   var boardWrap = document.getElementById("boardWrap");
+  var boardActions = document.getElementById("boardActions");
   var turnBar = document.getElementById("turnBar");
   var selectorSection = document.getElementById("selectorSection");
   var btnReady = document.getElementById("btnReady");
@@ -2245,6 +2255,7 @@ button {
     btnSurrender.disabled = !canSurrender;
     btnNew.classList.toggle("hidden", mode === "online");
     btnNew.disabled = onlineActive;
+    boardActions.classList.toggle("hidden", mode === "online");
     var roomBothIn = mode === "online" && onlinePhase !== "idle" && onlinePhase !== "waiting";
     btnShare.classList.toggle("hidden", roomBothIn);
     btnCopyCode.classList.toggle("hidden", roomBothIn);
