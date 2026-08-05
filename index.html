@@ -2039,25 +2039,32 @@ button {
       }
       return ties[Math.floor(Math.random() * ties.length)];
     }
-    var bestMove = scored[0].move;
     var bestVal = -INF - 1;
     var alpha = -INF - 1;
     var opp = color === "black" ? "white" : "black";
+    // 困难档随机性：与最优评估相差很小（约5%，下限3分）的走法随机挑选，避免棋路固定被背板
+    var hardCandidates = [];
     for (var k = 0; k < scored.length; k++) {
       var m = scored[k].move;
       var sim = simulateMove(board, lastMove, m, color);
       var val;
       if (isWin(sim.board, m.r, m.c, color)) {
         val = INF;
+      } else if (bestVal >= INF) {
+        continue;
       } else {
         var searchDepth = scored.length > 20 ? 2 : 3;
         val = -negamax(sim.board, sim.lastMove, opp, searchDepth, -INF - 1, -alpha);
       }
-      if (val > bestVal) { bestVal = val; bestMove = m; }
-      if (val > alpha) alpha = val;
-      if (alpha >= INF) break;
+      if (val > bestVal) {
+        bestVal = val;
+        hardCandidates = [m];
+      } else if (val >= bestVal - Math.max(3, Math.abs(bestVal) * 0.05)) {
+        hardCandidates.push(m);
+      }
+      if (val > alpha && val < INF) alpha = val;
     }
-    return bestMove;
+    return hardCandidates[Math.floor(Math.random() * hardCandidates.length)];
   }
 
   function countDir(board, r, c, color, dr, dc) {
@@ -3882,6 +3889,8 @@ button {
     achUnlocked: function () { return achData.unlocked; },
     achList: function () { return ACHIEVEMENTS; },
     applyMoveFn: function (r, c, type) { applyMove(r, c, type); },
+    enumerateMovesFn: function (b, l) { return enumerateMoves(b, l); },
+    chooseMoveFn: function (b, l, color, diff) { return chooseMove(b, l, color, diff); },
     cancelAi: function () {
       if (aiTimer) { clearTimeout(aiTimer); aiTimer = null; }
       aiThinking = false;
