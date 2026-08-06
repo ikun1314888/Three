@@ -1529,7 +1529,7 @@ button {
     <section class="rules-section">
       <h3>特殊情况与禁止事项</h3>
       <ul>
-        <li>落子不得落在导致对方无任何合法落点的位置（该位置禁止落子）。</li>
+        <li>落子不得落在导致对方无任何合法落点的位置（该位置禁止落子；落子直接构成三连时不受此限制）。</li>
         <li>若对方落子后，己方所有可落点都会导致对方无合法落点，则对方判负。</li>
         <li>棋盘落满且无人形成三连，则本局平局。</li>
         <li>不得落在已有棋子占据的位置上。</li>
@@ -1869,26 +1869,34 @@ button {
     return legalCellsFrom({ r: r, c: c, type: type }, copy);
   }
 
-  function playableCells(board, lastMove, type) {
+  function wouldWin(board, r, c, color) {
+    board[r][c] = { color: color, type: "square" };
+    var w = isWin(board, r, c, color);
+    board[r][c] = null;
+    return w;
+  }
+
+  function playableCells(board, lastMove, type, color) {
     var result = [];
     var cands = legalCellsFrom(lastMove, board);
     for (var i = 0; i < cands.length; i++) {
-      if (opponentCellsAfter(board, cands[i][0], cands[i][1], type).length > 0) {
+      // 合法：落子后对方仍有合法落点；或该落子直接构成三连（三连不受禁手约束）
+      if (opponentCellsAfter(board, cands[i][0], cands[i][1], type).length > 0 || (color && wouldWin(board, cands[i][0], cands[i][1], color))) {
         result.push([cands[i][0], cands[i][1]]);
       }
     }
     return result;
   }
 
-  function hasAnyPlayableMove(board, lastMove) {
+  function hasAnyPlayableMove(board, lastMove, color) {
     for (var t = 0; t < TYPES.length; t++) {
-      if (playableCells(board, lastMove, TYPES[t]).length > 0) return true;
+      if (playableCells(board, lastMove, TYPES[t], color).length > 0) return true;
     }
     return false;
   }
 
   function currentPlayable(type) {
-    return playableCells(state.board, state.lastMove, type);
+    return playableCells(state.board, state.lastMove, type, state.current);
   }
 
   function isPlayerTurn() {
@@ -1905,11 +1913,11 @@ button {
     return color === playerColor ? "你（" + COLOR_LABEL[color] + "）" : "电脑（" + COLOR_LABEL[color] + "）";
   }
 
-  function enumerateMoves(board, lastMove) {
+  function enumerateMoves(board, lastMove, color) {
     var moves = [];
     for (var t = 0; t < TYPES.length; t++) {
       var type = TYPES[t];
-      var cells = playableCells(board, lastMove, type);
+      var cells = playableCells(board, lastMove, type, color);
       for (var i = 0; i < cells.length; i++) {
         moves.push({ type: type, r: cells[i][0], c: cells[i][1] });
       }
@@ -1927,9 +1935,9 @@ button {
     var sim = simulateMove(board, lastMove, move, color);
     var opp = color === "black" ? "white" : "black";
     if (isWin(sim.board, move.r, move.c, color)) return INF;
-    if (!hasAnyPlayableMove(sim.board, sim.lastMove)) return -INF;
+    if (!hasAnyPlayableMove(sim.board, sim.lastMove, opp)) return -INF;
     var score = 0;
-    var oppMoves = enumerateMoves(sim.board, sim.lastMove);
+    var oppMoves = enumerateMoves(sim.board, sim.lastMove, opp);
     var oppWinCount = 0;
     for (var i = 0; i < oppMoves.length; i++) {
       if (isWin(sim.board, oppMoves[i].r, oppMoves[i].c, opp)) oppWinCount++;
@@ -1938,7 +1946,7 @@ button {
     var myThreat = false;
     for (var j = 0; j < oppMoves.length && !myThreat; j++) {
       var sim2 = simulateMove(sim.board, sim.lastMove, oppMoves[j]);
-      var myMoves = enumerateMoves(sim2.board, sim2.lastMove);
+      var myMoves = enumerateMoves(sim2.board, sim2.lastMove, color);
       for (var k = 0; k < myMoves.length; k++) {
         if (isWin(sim2.board, myMoves[k].r, myMoves[k].c, color)) { myThreat = true; break; }
       }
@@ -1999,7 +2007,7 @@ button {
 
   function negamax(board, lastMove, mover, depth, alpha, beta) {
     if (boardFull(board)) return 0;
-    var moves = enumerateMoves(board, lastMove);
+    var moves = enumerateMoves(board, lastMove, mover);
     if (moves.length === 0) return INF;
     if (depth === 0) return evaluatePosition(board, lastMove, mover);
     var best = -INF;
@@ -2021,7 +2029,7 @@ button {
   }
 
   function chooseMove(board, lastMove, color, diff) {
-    var moves = enumerateMoves(board, lastMove);
+    var moves = enumerateMoves(board, lastMove, color);
     if (moves.length === 0) return null;
     if (diff === "easy") {
       return moves[Math.floor(Math.random() * moves.length)];
@@ -2330,7 +2338,7 @@ button {
     state.current = opp;
     state.phase = "choosePiece";
     state.selectedType = null;
-    if (!hasAnyPlayableMove(state.board, state.lastMove)) {
+    if (!hasAnyPlayableMove(state.board, state.lastMove, state.current)) {
       state.winner = opp;
       state.winReason = "deadlock";
       state.phase = "over";
@@ -2353,7 +2361,7 @@ button {
       if (legals[i][0] === r && legals[i][1] === c) { ok = true; break; }
     }
     if (!ok) return;
-    if (opponentCellsAfter(state.board, r, c, state.selectedType).length === 0) return;
+    if (opponentCellsAfter(state.board, r, c, state.selectedType).length === 0 && !wouldWin(state.board, r, c, state.current)) return;
     var moveType = state.selectedType;
     applyMove(r, c, moveType);
     sendOnlineMove(moveType, r, c);
@@ -3889,7 +3897,7 @@ button {
     achUnlocked: function () { return achData.unlocked; },
     achList: function () { return ACHIEVEMENTS; },
     applyMoveFn: function (r, c, type) { applyMove(r, c, type); },
-    enumerateMovesFn: function (b, l) { return enumerateMoves(b, l); },
+    enumerateMovesFn: function (b, l, color) { return enumerateMoves(b, l, color); },
     chooseMoveFn: function (b, l, color, diff) { return chooseMove(b, l, color, diff); },
     cancelAi: function () {
       if (aiTimer) { clearTimeout(aiTimer); aiTimer = null; }
