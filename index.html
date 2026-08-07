@@ -2896,6 +2896,7 @@ button {
   var onlineMatchCancel = false;
   var onlineMatchTimer = null;
   var onlineMatchTried = [];
+  var onlineMatchClaimRetries = 0;
   var onlineMatched = false;
 
   function createOnlineRoom() {
@@ -2929,6 +2930,7 @@ button {
     onlineMatching = true;
     onlineMatchCancel = false;
     onlineMatchTried = [];
+    onlineMatchClaimRetries = 0;
     onlineAmHost = false;
     onlineCode = null;
     onlineMyColor = null;
@@ -2951,7 +2953,8 @@ button {
       }
       return;
     }
-    var slotIdx = untried[Math.floor(Math.random() * untried.length)];
+    // 固定从最低槽位开始顺序探测，保证同时匹配的双方在最低空槽汇合
+    var slotIdx = untried[0];
     onlineMatchTried.push(slotIdx);
     var slotId = ONLINE.matchSlots[slotIdx];
     // 先尝试连接该槽位：槽里有人等待则直接配对
@@ -3016,9 +3019,24 @@ button {
     peer.on("error", function (err) {
       if (onlineMatchCancel) return;
       if (err && err.type === "unavailable-id") {
-        // 槽位被抢：换下一个
-        cleanupOnlinePeer();
-        if (onlineMatching && onlinePhase === "waiting" && !onlineConn) attemptMatch();
+        if (onlineMatchClaimRetries < 3) {
+          // 槽位刚被他人抢占：退回该槽，重新以“连接方”尝试（对方正在该槽等待）
+          onlineMatchClaimRetries++;
+          onlineMatchTried.pop();
+          onlineAmHost = false;
+          cleanupOnlinePeer();
+          if (onlineMatching && onlinePhase === "waiting" && !onlineConn) {
+            setTimeout(function () {
+              if (onlineMatching && onlinePhase === "waiting" && !onlineConn) attemptMatch();
+            }, 800);
+          }
+        } else {
+          // 该槽持续异常：放弃并换下一个
+          onlineMatchClaimRetries = 0;
+          onlineAmHost = false;
+          cleanupOnlinePeer();
+          if (onlineMatching && onlinePhase === "waiting" && !onlineConn) attemptMatch();
+        }
       } else if (err && (err.type === "network" || err.type === "server-error" || err.type === "socket-error" || err.type === "socket-closed")) {
         handleOnlineError("无法连接联机服务器，请检查网络后重试");
       } else {
@@ -3033,6 +3051,7 @@ button {
     onlineMatched = true;
     if (onlineMatchTimer) { clearTimeout(onlineMatchTimer); onlineMatchTimer = null; }
     onlineMatchTried = [];
+    onlineMatchClaimRetries = 0;
   }
 
   function cancelMatchmaking() {
@@ -3040,6 +3059,7 @@ button {
     onlineMatchCancel = true;
     if (onlineMatchTimer) { clearTimeout(onlineMatchTimer); onlineMatchTimer = null; }
     onlineMatchTried = [];
+    onlineMatchClaimRetries = 0;
     cleanupOnlinePeer();
     onlineConn = null;
     onlineCode = null;
@@ -3618,6 +3638,7 @@ button {
     onlineMatched = false;
     if (onlineMatchTimer) { clearTimeout(onlineMatchTimer); onlineMatchTimer = null; }
     onlineMatchTried = [];
+    onlineMatchClaimRetries = 0;
     clearOnlineTimer();
     closeDiceModal();
     closeOnlineRequest();
@@ -3656,6 +3677,7 @@ button {
     onlineMatched = false;
     if (onlineMatchTimer) { clearTimeout(onlineMatchTimer); onlineMatchTimer = null; }
     onlineMatchTried = [];
+    onlineMatchClaimRetries = 0;
     clearOnlineTimer();
     closeDiceModal();
     closeOnlineRequest();
