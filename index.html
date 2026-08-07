@@ -867,6 +867,16 @@ button {
   margin-bottom: 0;
 }
 
+.match-status {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  margin: 12px 0 0;
+  font-size: 13px;
+  color: var(--text-secondary);
+}
+
 .online-error {
   display: none;
   margin: 12px 0 0;
@@ -1388,9 +1398,11 @@ button {
   <section class="online-lobby" id="onlineLobby" aria-label="联机对战大厅">
     <div class="lobby-card">
       <h3 class="lobby-title">联机对战</h3>
-      <p class="lobby-note">创建房间并分享 5 位房间码给好友；或输入对方房间码加入。</p>
-      <button type="button" class="btn-primary lobby-btn" id="btnCreateRoom">创建房间</button>
+      <p class="lobby-note">随机匹配陌生对手，或创建房间邀请好友。</p>
+      <button type="button" class="btn-primary lobby-btn" id="btnMatch">随机匹配</button>
+      <button type="button" class="btn-ghost lobby-btn" id="btnCreateRoom">创建房间</button>
       <button type="button" class="btn-ghost lobby-btn" id="btnJoinRoom">加入房间</button>
+      <p class="match-status hidden" id="matchStatus"><span>正在随机匹配…</span><button type="button" class="btn-ghost btn-sm" id="btnMatchCancel">取消</button></p>
       <p class="online-error" id="onlineError"></p>
     </div>
   </section>
@@ -1770,6 +1782,9 @@ button {
   var btnLeaveRoom = document.getElementById("btnLeaveRoom");
   var btnCreateRoom = document.getElementById("btnCreateRoom");
   var btnJoinRoom = document.getElementById("btnJoinRoom");
+  var btnMatch = document.getElementById("btnMatch");
+  var btnMatchCancel = document.getElementById("btnMatchCancel");
+  var matchStatus = document.getElementById("matchStatus");
   var onlineError = document.getElementById("onlineError");
   var joinModal = document.getElementById("joinModal");
   var joinCodeInput = document.getElementById("joinCodeInput");
@@ -2165,6 +2180,7 @@ button {
   function statusMessage() {
     if (aiThinking && mode === "pve") return "电脑思考中…";
     if (mode === "online") {
+      if (onlineMatching) return "正在随机匹配…";
       if (onlinePhase === "waiting") {
         return onlineAmHost ? "房间已创建，等待对手加入…" : (onlineAutoJoin ? "正在通过邀请加入房间…" : "正在连接房间…");
       }
@@ -2283,12 +2299,19 @@ button {
     btnShare.classList.toggle("hidden", roomBothIn);
     btnCopyCode.classList.toggle("hidden", roomBothIn);
     pveSettings.classList.toggle("visible", mode === "pve");
-    onlineLobby.classList.toggle("visible", mode === "online" && onlinePhase === "idle");
-    roomBar.classList.toggle("visible", onlineActive);
-    boardWrap.classList.toggle("hidden", mode === "online" && onlinePhase === "idle");
-    turnBar.classList.toggle("hidden", mode === "online" && onlinePhase === "idle");
-    selectorSection.classList.toggle("hidden", mode === "online" && onlinePhase === "idle");
-    for (var mb = 0; mb < modeBtns.length; mb++) modeBtns[mb].disabled = onlineActive;
+    var onlineMatchingState = mode === "online" && onlineMatching;
+    var onlineIdle = mode === "online" && (onlinePhase === "idle" || onlineMatching);
+    onlineLobby.classList.toggle("visible", mode === "online" && (onlinePhase === "idle" || onlineMatching));
+    roomBar.classList.toggle("visible", onlineActive && !onlineMatching);
+    boardWrap.classList.toggle("hidden", onlineIdle);
+    turnBar.classList.toggle("hidden", onlineIdle);
+    selectorSection.classList.toggle("hidden", onlineIdle);
+    for (var mb = 0; mb < modeBtns.length; mb++) modeBtns[mb].disabled = onlineActive || onlineMatchingState;
+    var lobbyLocked = mode === "online" && (onlinePhase !== "idle" || onlineMatching);
+    btnMatch.disabled = lobbyLocked;
+    btnCreateRoom.disabled = lobbyLocked;
+    btnJoinRoom.disabled = lobbyLocked;
+    matchStatus.classList.toggle("hidden", !onlineMatchingState);
     btnReady.classList.toggle("hidden", !(mode === "online" && onlinePhase === "ready"));
     btnReady.disabled = !(mode === "online" && onlinePhase === "ready") || onlineMeReady;
     btnReady.textContent = onlineMeReady ? "已准备" : "准备";
@@ -2296,7 +2319,7 @@ button {
     btnRematch.classList.toggle("hidden", !showRematch);
     btnRematch.disabled = !showRematch || onlineRematchPending;
     onlineTimerText.classList.toggle("hidden", !(onlinePlaying && !state.winner));
-    roomCodeText.textContent = onlineCode || "";
+    roomCodeText.textContent = onlineMatched ? "随机匹配" : (onlineCode || "");
     roomStatusText.textContent = onlinePhase === "playing" ? "对局中" : (onlinePhase === "ready" ? "等待开始" : (onlinePhase === "dice" ? "掷骰选边" : (onlinePhase === "idle" ? "" : (onlineAmHost ? "等待对手加入…" : "连接中…"))));
     setSegState(modeBtns, "data-mode", mode);
     updateOnlineTimerUI();
@@ -2844,7 +2867,9 @@ button {
     peerPort: 443,
     peerSecure: true,
     joinTimeoutMs: 10000,
-    moveTimeSec: 180
+    moveTimeSec: 180,
+    matchSlots: ["slq-q0", "slq-q1", "slq-q2", "slq-q3", "slq-q4", "slq-q5", "slq-q6", "slq-q7", "slq-q8", "slq-q9"],
+    matchTimeoutMs: 20000
   };
   var onlinePeer = null;
   var onlineConn = null;
@@ -2867,6 +2892,11 @@ button {
   var onlineAutoJoinCode = null;
   var onlineAutoJoinRetries = 0;
   var onlineAutoJoinTimer = null;
+  var onlineMatching = false;
+  var onlineMatchCancel = false;
+  var onlineMatchTimer = null;
+  var onlineMatchTried = [];
+  var onlineMatched = false;
 
   function createOnlineRoom() {
     if (mode !== "online") return;
@@ -2889,6 +2919,135 @@ button {
     onlinePhase = "waiting";
     onlineMyColor = null;
     startOnlinePeer(null, false);
+    render();
+  }
+
+  function startMatchmaking() {
+    if (mode !== "online" || onlinePhase !== "idle") return;
+    if (typeof Peer === "undefined") { showOnlineError("联机组件加载失败，请刷新页面重试"); return; }
+    clearAutoJoin();
+    onlineMatching = true;
+    onlineMatchCancel = false;
+    onlineMatchTried = [];
+    onlineAmHost = false;
+    onlineCode = null;
+    onlineMyColor = null;
+    onlinePhase = "waiting";
+    render();
+    attemptMatch();
+  }
+
+  function attemptMatch() {
+    if (onlineMatchCancel || !onlineMatching) return;
+    armMatchTimer();
+    var untried = [];
+    for (var i = 0; i < ONLINE.matchSlots.length; i++) {
+      if (onlineMatchTried.indexOf(i) < 0) untried.push(i);
+    }
+    if (untried.length === 0) {
+      if (onlineMatching && onlinePhase === "waiting" && !onlineConn) {
+        cancelMatchmaking();
+        showOnlineError("暂时没有匹配到对手，请重试");
+      }
+      return;
+    }
+    var slotIdx = untried[Math.floor(Math.random() * untried.length)];
+    onlineMatchTried.push(slotIdx);
+    var slotId = ONLINE.matchSlots[slotIdx];
+    // 先尝试连接该槽位：槽里有人等待则直接配对
+    cleanupOnlinePeer();
+    var opts = { host: ONLINE.peerHost, port: ONLINE.peerPort, secure: ONLINE.peerSecure, debug: 0 };
+    var probe = new Peer(null, opts);
+    onlinePeer = probe;
+    onlineAmHost = false;
+    probe.on("open", function () {
+      if (onlineMatchCancel) return;
+      var conn = probe.connect(slotId, { reliable: true });
+      onlineConn = conn;
+      bindOnlineConn(conn);
+    });
+    probe.on("error", function (err) {
+      if (onlineMatchCancel) return;
+      if (err && err.type === "peer-unavailable") {
+        // 槽空：抢占成为房主等待
+        claimSlot(slotIdx, slotId);
+      } else if (err && (err.type === "network" || err.type === "server-error" || err.type === "socket-error" || err.type === "socket-closed")) {
+        handleOnlineError("无法连接联机服务器，请检查网络后重试");
+      } else {
+        handleOnlineError((err && err.message) || "联机出错，请重试");
+      }
+    });
+  }
+
+  function armMatchTimer() {
+    if (onlineMatchTimer) { clearTimeout(onlineMatchTimer); onlineMatchTimer = null; }
+    onlineMatchTimer = setTimeout(function () {
+      // 仅在探测阶段超时（房主等待期不自动取消）
+      if (onlineMatching && onlinePhase === "waiting" && !onlineAmHost) {
+        cancelMatchmaking();
+        showOnlineError("暂时没有匹配到对手，请重试");
+      }
+    }, ONLINE.matchTimeoutMs);
+  }
+
+  function claimSlot(slotIdx, slotId) {
+    if (onlineMatchCancel || !onlineMatching) return;
+    cleanupOnlinePeer();
+    var opts = { host: ONLINE.peerHost, port: ONLINE.peerPort, secure: ONLINE.peerSecure, debug: 0 };
+    var peer = new Peer(slotId, opts);
+    onlinePeer = peer;
+    onlineAmHost = true;
+    onlineCode = null;
+    render();
+    peer.on("open", function () {
+      if (onlineMatchCancel) return;
+      render();
+    });
+    peer.on("connection", function (conn) {
+      if (onlineMatchCancel) return;
+      if (onlineConn && onlinePhase !== "idle") {
+        try { conn.send({ t: "full" }); } catch (e) {}
+        setTimeout(function () { try { conn.close(); } catch (e) {} }, 300);
+        return;
+      }
+      onlineConn = conn;
+      bindOnlineConn(conn);
+    });
+    peer.on("error", function (err) {
+      if (onlineMatchCancel) return;
+      if (err && err.type === "unavailable-id") {
+        // 槽位被抢：换下一个
+        cleanupOnlinePeer();
+        if (onlineMatching && onlinePhase === "waiting" && !onlineConn) attemptMatch();
+      } else if (err && (err.type === "network" || err.type === "server-error" || err.type === "socket-error" || err.type === "socket-closed")) {
+        handleOnlineError("无法连接联机服务器，请检查网络后重试");
+      } else {
+        handleOnlineError((err && err.message) || "联机出错，请重试");
+      }
+    });
+  }
+
+  function stopMatchmaking() {
+    onlineMatching = false;
+    onlineMatchCancel = false;
+    onlineMatched = true;
+    if (onlineMatchTimer) { clearTimeout(onlineMatchTimer); onlineMatchTimer = null; }
+    onlineMatchTried = [];
+  }
+
+  function cancelMatchmaking() {
+    if (!onlineMatching) return;
+    onlineMatchCancel = true;
+    if (onlineMatchTimer) { clearTimeout(onlineMatchTimer); onlineMatchTimer = null; }
+    onlineMatchTried = [];
+    cleanupOnlinePeer();
+    onlineConn = null;
+    onlineCode = null;
+    onlinePhase = "idle";
+    onlineAmHost = false;
+    onlineMyColor = null;
+    onlineMatching = false;
+    onlineMatchCancel = false;
     render();
   }
 
@@ -2947,6 +3106,7 @@ button {
     conn.on("open", function () {
       clearJoinTimer();
       clearAutoJoin();
+      if (onlineMatching) stopMatchmaking();
       if (onlinePhase === "waiting") {
         onlinePhase = "ready";
         onlineMeReady = false;
@@ -3064,7 +3224,13 @@ button {
       if (!ok) return;
       applyMove(data.r, data.c, data.type);
     } else if (t === "full") {
-      handleOnlineError("房间已满");
+      if (onlineMatching && onlinePhase === "waiting" && !onlineMyColor) {
+        cleanupOnlinePeer();
+        onlineConn = null;
+        if (onlineMatching && onlinePhase === "waiting" && !onlineConn) attemptMatch();
+      } else {
+        handleOnlineError("房间已满");
+      }
     } else if (t === "leave") {
       if (onlinePhase !== "idle") handleOnlineError("对方已离开房间");
     }
@@ -3447,6 +3613,11 @@ button {
   function resetOnlineState() {
     clearJoinTimer();
     clearAutoJoin();
+    onlineMatching = false;
+    onlineMatchCancel = true;
+    onlineMatched = false;
+    if (onlineMatchTimer) { clearTimeout(onlineMatchTimer); onlineMatchTimer = null; }
+    onlineMatchTried = [];
     clearOnlineTimer();
     closeDiceModal();
     closeOnlineRequest();
@@ -3455,12 +3626,12 @@ button {
     onlineRematchPending = false;
     onlineMeReady = false;
     onlineOppReady = false;
+    onlinePhase = "idle";
     if (onlineConn) { try { onlineConn.close(); } catch (e) {} }
     if (onlinePeer) { try { onlinePeer.destroy(); } catch (e) {} }
     onlineConn = null;
     onlinePeer = null;
     onlineCode = null;
-    onlinePhase = "idle";
     onlineAmHost = false;
     onlineMyColor = null;
     resetBoard();
@@ -3480,6 +3651,11 @@ button {
   function handleOnlineError(msg) {
     cleanupOnlinePeer();
     clearAutoJoin();
+    onlineMatching = false;
+    onlineMatchCancel = true;
+    onlineMatched = false;
+    if (onlineMatchTimer) { clearTimeout(onlineMatchTimer); onlineMatchTimer = null; }
+    onlineMatchTried = [];
     clearOnlineTimer();
     closeDiceModal();
     closeOnlineRequest();
@@ -3791,6 +3967,11 @@ button {
   });
   btnCreateRoom.addEventListener("click", createOnlineRoom);
   btnJoinRoom.addEventListener("click", openJoinModal);
+  btnMatch.addEventListener("click", function () {
+    if (mode !== "online" || onlinePhase !== "idle") return;
+    startMatchmaking();
+  });
+  btnMatchCancel.addEventListener("click", cancelMatchmaking);
   btnJoinConfirm.addEventListener("click", confirmJoin);
   joinCodeInput.addEventListener("keydown", function (e) { if (e.key === "Enter") confirmJoin(); });
   btnCopyCode.addEventListener("click", copyRoomCode);
