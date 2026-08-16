@@ -2043,11 +2043,11 @@ button {
     return best;
   }
 
-  function chooseMove(board, lastMove, color, diff, style) {
+  function chooseMove(board, lastMove, color, diff, style, exclude) {
     var moves = enumerateMoves(board, lastMove, color);
     if (moves.length === 0) return null;
     if (diff === "easy") {
-      return style ? styleWeightedPick(moves, board, color) : moves[Math.floor(Math.random() * moves.length)];
+      return style ? styleWeightedPick(moves, board, color, exclude) : moves[Math.floor(Math.random() * moves.length)];
     }
     var scored = [];
     for (var i = 0; i < moves.length; i++) {
@@ -2060,7 +2060,7 @@ button {
       for (var j = 0; j < scored.length; j++) {
         if (scored[j].score === bestScore) ties.push(scored[j].move);
       }
-      return style ? styleWeightedPick(ties, board, color) : ties[Math.floor(Math.random() * ties.length)];
+      return style ? styleWeightedPick(ties, board, color, exclude) : ties[Math.floor(Math.random() * ties.length)];
     }
     var bestVal = -INF - 1;
     var alpha = -INF - 1;
@@ -2088,7 +2088,7 @@ button {
       }
       if (val > alpha && val < INF) alpha = val;
     }
-    return style ? styleWeightedPick(hardCandidates, board, color) : hardCandidates[Math.floor(Math.random() * hardCandidates.length)];
+    return style ? styleWeightedPick(hardCandidates, board, color, exclude) : hardCandidates[Math.floor(Math.random() * hardCandidates.length)];
   }
 
   function countDir(board, r, c, color, dr, dc) {
@@ -2284,7 +2284,7 @@ button {
     var onlinePlaying = mode === "online" && onlinePhase === "playing";
     var undoOk = history.length >= 2 && !state.winner && !aiThinking;
     if (mode === "online") {
-      undoOk = undoOk && onlinePlaying && state.current === onlineMyColor && !onlineUndoPending && !requestModal.classList.contains("open");
+      undoOk = undoOk && onlinePlaying && state.current === onlineMyColor && !onlineUndoPending && !onlineUndoUsed && !requestModal.classList.contains("open");
     }
     btnUndo.disabled = !undoOk;
     btnUndo.classList.toggle("hidden", mode === "online");
@@ -2372,6 +2372,7 @@ button {
     }
     if (mode === "online" && onlinePhase === "playing") resetOnlineTimer();
     if (onlineFallbackAi) scheduleFallbackAiMove();
+    onlineUndoUsed = false;
     render();
     maybeScheduleAi();
   }
@@ -2489,23 +2490,76 @@ button {
       aiTimer = null;
       aiThinking = false;
       if (state.winner || onlinePhase !== "playing") { render(); return; }
-      var mv = chooseMove(state.board, state.lastMove, state.current, fallbackDifficultyLabel(), true);
+      // AI 偶尔主动发起悔棋（每回合约 0.4%，每局最多一次 ≈ 20 局一次）
+      if (!aiUndoUsedThisGame && history.length >= 2 && Math.random() < 0.004) {
+        aiUndoUsedThisGame = true;
+        aiUndoRequestPending = true;
+        onlineUndoUsed = true;
+        openOnlineRequest("undo");
+        render();
+        return;
+      }
+      var exclude = aiRedoAfterUndo ? aiLastMovePos : null;
+      aiRedoAfterUndo = false;
+      var mv = chooseMove(state.board, state.lastMove, state.current, fallbackDifficultyLabel(), true, exclude);
+      if (mv) aiLastMovePos = { r: mv.r, c: mv.c };
       if (mv) applyMove(mv.r, mv.c, mv.type);
       render();
     }, delay);
+  }
+
+  // fallback 下玩家发起再来一局：AI 延迟后随机接受/拒绝
+  function requestFallbackRematch() {
+    if (mode !== "online" || !onlineFallbackAi || onlinePhase !== "playing" || !state.winner || onlineRematchPending || aiRematchRequestPending) return;
+    if (aiPostGameTimer) { clearTimeout(aiPostGameTimer); aiPostGameTimer = null; }
+    onlineRematchPending = true;
+    render();
+    aiDecisionTimer = setTimeout(function () {
+      aiDecisionTimer = null;
+      onlineRematchPending = false;
+      if (onlinePhase !== "playing" || !state.winner) { render(); return; }
+      if (Math.random() < 0.5) {
+        performOnlineRematch();
+      } else {
+        notice = "对方拒绝了再来一局";
+        render();
+      }
+    }, aiDecisionDelay());
+  }
+
+  // 终局后 AI 随机决策：发起再来一局 / 离开 / 等待
+  function aiPostGameDecide() {
+    if (!onlineFallbackAi || onlinePhase !== "playing" || !state.winner) return;
+    if (onlineRematchPending || aiRematchRequestPending) return;
+    var r = Math.random();
+    if (r < 0.55) {
+      aiRematchRequestPending = true;
+      openOnlineRequest("rematch");
+    } else if (r < 0.75) {
+      handleOnlineError("对方已离开房间");
+    }
   }
 
   function undo() {
     if (history.length < 2 || state.winner || aiThinking) return;
     if (mode === "online") {
       if (onlinePhase !== "playing" || state.current !== onlineMyColor || onlineUndoPending || requestModal.classList.contains("open")) return;
+      if (onlineUndoUsed) return;
+      onlineUndoUsed = true;
       if (onlineFallbackAi) {
-        if (Math.random() < 0.7) {
-          performOnlineUndo();
-        } else {
-          notice = "对方拒绝了悔棋";
-          render();
-        }
+        onlineUndoPending = true;
+        render();
+        aiDecisionTimer = setTimeout(function () {
+          aiDecisionTimer = null;
+          onlineUndoPending = false;
+          if (state.winner || onlinePhase !== "playing") { render(); return; }
+          if (Math.random() < 0.6) {
+            performOnlineUndo();
+          } else {
+            notice = "对方拒绝了悔棋";
+            render();
+          }
+        }, aiDecisionDelay());
         return;
       }
       onlineUndoPending = true;
@@ -2952,6 +3006,15 @@ button {
   var onlineMatchClaimRetries = 0;
   var onlineMatched = false;
   var onlineFallbackAi = false;
+  var onlineUndoUsed = false;
+  var aiReadyTimer = null;
+  var aiDecisionTimer = null;
+  var aiPostGameTimer = null;
+  var aiLastMovePos = null;
+  var aiUndoRequestPending = false;
+  var aiRematchRequestPending = false;
+  var aiUndoUsedThisGame = false;
+  var aiRedoAfterUndo = false;
   var aiProfile = null;
   var aiGlobal = null;
   var aiGameSample = null;
@@ -3056,16 +3119,30 @@ button {
     if (!onlineMatching) return;
     stopMatchmaking();
     cleanupOnlinePeer();
+    clearAiTimers();
     onlineConn = null;
     onlineAmHost = true;
     onlineCode = null;
     onlineFallbackAi = true;
+    onlineUndoUsed = false;
+    aiUndoUsedThisGame = false;
+    aiUndoRequestPending = false;
+    aiRematchRequestPending = false;
+    aiRedoAfterUndo = false;
+    aiLastMovePos = null;
     onlinePhase = "ready";
     onlineMeReady = false;
-    onlineOppReady = true; // AI 已准备
+    onlineOppReady = false; // AI 稍后就绪（模拟真人思考）
     freshAiGameSample();
     aiTurnStartTs = Date.now();
     render();
+    aiReadyTimer = setTimeout(function () {
+      aiReadyTimer = null;
+      if (!onlineFallbackAi || onlinePhase !== "ready") return;
+      onlineOppReady = true;
+      render();
+      maybeStartDice();
+    }, 1500 + Math.random() * 2500);
   }
 
   function claimSlot(slotIdx, slotId) {
@@ -3227,6 +3304,12 @@ button {
     onlineMeReady = false;
     onlineOppReady = false;
     onlineMyColor = myColor;
+    onlineUndoUsed = false;
+    aiUndoUsedThisGame = false;
+    aiUndoRequestPending = false;
+    aiRematchRequestPending = false;
+    aiRedoAfterUndo = false;
+    aiLastMovePos = null;
     onlinePhase = "playing";
     resetBoard();
     render();
@@ -3558,8 +3641,15 @@ button {
   function performOnlineRematch() {
     endOverlay.classList.remove("open");
     closeDiceModal();
+    clearAiTimers();
     onlineMeReady = false;
     onlineOppReady = false;
+    onlineUndoUsed = false;
+    aiUndoUsedThisGame = false;
+    aiUndoRequestPending = false;
+    aiRematchRequestPending = false;
+    aiRedoAfterUndo = false;
+    aiLastMovePos = null;
     winCells = [];
     notice = null;
     history = [];
@@ -3595,20 +3685,37 @@ button {
       sendOnline({ t: "undo_resp", ok: true });
       closeOnlineRequest();
       performOnlineUndo();
+      if (onlineFallbackAi && aiUndoRequestPending) {
+        aiUndoRequestPending = false;
+        aiRedoAfterUndo = true; // AI 重新落子时尽量更换位置
+        scheduleFallbackAiMove();
+      }
     } else if (onlineRequestKind === "rematch") {
       sendOnline({ t: "rematch_resp", ok: true });
       closeOnlineRequest();
+      if (onlineFallbackAi && aiRematchRequestPending) aiRematchRequestPending = false;
       performOnlineRematch();
     }
   }
 
   function rejectOnlineRequest() {
-    if (onlineRequestKind === "undo") {
+    var kind = onlineRequestKind;
+    if (kind === "undo") {
       sendOnline({ t: "undo_resp", ok: false });
-    } else if (onlineRequestKind === "rematch") {
+    } else if (kind === "rematch") {
       sendOnline({ t: "rematch_resp", ok: false });
     }
     closeOnlineRequest();
+    if (onlineFallbackAi) {
+      if (kind === "undo" && aiUndoRequestPending) {
+        aiUndoRequestPending = false;
+        scheduleFallbackAiMove();
+      } else if (kind === "rematch" && aiRematchRequestPending) {
+        aiRematchRequestPending = false;
+        handleOnlineError("对方已离开房间");
+        return;
+      }
+    }
     render();
   }
 
@@ -3727,6 +3834,13 @@ button {
     onlineMatchCancel = true;
     onlineMatched = false;
     onlineFallbackAi = false;
+    onlineUndoUsed = false;
+    aiUndoUsedThisGame = false;
+    aiUndoRequestPending = false;
+    aiRematchRequestPending = false;
+    aiRedoAfterUndo = false;
+    aiLastMovePos = null;
+    clearAiTimers();
     if (onlineMatchTimer) { clearTimeout(onlineMatchTimer); onlineMatchTimer = null; }
     onlineMatchTried = [];
     onlineMatchClaimRetries = 0;
@@ -3767,6 +3881,13 @@ button {
     onlineMatchCancel = true;
     onlineMatched = false;
     onlineFallbackAi = false;
+    onlineUndoUsed = false;
+    aiUndoUsedThisGame = false;
+    aiUndoRequestPending = false;
+    aiRematchRequestPending = false;
+    aiRedoAfterUndo = false;
+    aiLastMovePos = null;
+    clearAiTimers();
     if (onlineMatchTimer) { clearTimeout(onlineMatchTimer); onlineMatchTimer = null; }
     onlineMatchTried = [];
     onlineMatchClaimRetries = 0;
@@ -4125,7 +4246,28 @@ button {
     return Math.round(delay);
   }
 
-  function styleWeightedPick(candidates, board, color) {
+  // AI 决策（准备/悔棋/再来一局等）的思考时间：1.5~5s，优先采样自画像
+  function aiDecisionDelay() {
+    var samples = (aiGlobal && aiGlobal.thinkMs && aiGlobal.thinkMs.length) ? aiGlobal.thinkMs : (aiProfile ? aiProfile.thinkMs : []);
+    if (samples && samples.length > 0) {
+      var d = samples[Math.floor(Math.random() * samples.length)];
+      return Math.round(Math.max(1500, Math.min(5000, d)));
+    }
+    return 2000 + Math.floor(Math.random() * 3000);
+  }
+
+  function clearAiTimers() {
+    if (aiReadyTimer) { clearTimeout(aiReadyTimer); aiReadyTimer = null; }
+    if (aiDecisionTimer) { clearTimeout(aiDecisionTimer); aiDecisionTimer = null; }
+    if (aiPostGameTimer) { clearTimeout(aiPostGameTimer); aiPostGameTimer = null; }
+    if (aiTimer) { clearTimeout(aiTimer); aiTimer = null; aiThinking = false; }
+  }
+
+  function styleWeightedPick(candidates, board, color, exclude) {
+    if (exclude && candidates.length > 1) {
+      var filtered = candidates.filter(function (m) { return !(m.r === exclude.r && m.c === exclude.c); });
+      if (filtered.length > 0) candidates = filtered;
+    }
     var g = aiGlobal || aiProfile;
     if (!g) return candidates[Math.floor(Math.random() * candidates.length)];
     var totalType = (g.type.square || 0) + (g.type.circle || 0) + (g.type.triangle || 0) || 1;
@@ -4216,6 +4358,13 @@ button {
       if (aiRep) uploadAiReport(aiRep);
       if (mode === "online" && onlineFallbackAi) adaptAiDifficulty(aiWin);
     }
+    if (mode === "online" && onlineFallbackAi && state.winner) {
+      if (aiPostGameTimer) clearTimeout(aiPostGameTimer);
+      aiPostGameTimer = setTimeout(function () {
+        aiPostGameTimer = null;
+        aiPostGameDecide();
+      }, 2000 + Math.random() * 4000);
+    }
     endOverlay.classList.add("open");
   }
 
@@ -4247,7 +4396,7 @@ button {
   document.getElementById("btnAgain").addEventListener("click", function () {
     if (mode === "online") {
       if (onlinePhase === "playing" && state.winner) {
-        if (onlineFallbackAi) { performOnlineRematch(); return; }
+        if (onlineFallbackAi) { requestFallbackRematch(); return; }
         if (!onlineRematchPending) {
           onlineRematchPending = true;
           sendOnline({ t: "rematch_req" });
@@ -4350,7 +4499,7 @@ button {
   });
   btnRematch.addEventListener("click", function () {
     if (mode !== "online" || onlinePhase !== "playing" || !state.winner || onlineRematchPending) return;
-    if (onlineFallbackAi) { performOnlineRematch(); return; }
+    if (onlineFallbackAi) { requestFallbackRematch(); return; }
     onlineRematchPending = true;
     sendOnline({ t: "rematch_req" });
     render();
@@ -4406,6 +4555,7 @@ button {
     showDice: function (myVal, oppVal) { showDice(myVal, oppVal); },
     setMode: function (m) { setMode(m); },
     createRoom: createOnlineRoom,
+    roomCode: function () { return onlineCode; },
     joinRoom: function (raw) { joinOnlineRoom(raw); },
     chooseColor: function (color) { sendOnlineChoice(color); },
     boardCell: function (r, c) { return cells[r * SIZE + c]; },
