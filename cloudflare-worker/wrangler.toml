@@ -1,0 +1,10 @@
+name = "sanxing-ai"
+main = "src/index.js"
+compatibility_date = "2025-01-01"
+
+# 部署前先执行：
+#   npx wrangler kv namespace create AI_KV
+# 把输出的 id 填到下面，然后 npx wrangler deploy
+[[kv_namespaces]]
+binding = "AI_KV"
+id = "REPLACE_WITH_KV_NAMESPACE_ID"

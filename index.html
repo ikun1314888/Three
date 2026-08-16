@@ -2043,11 +2043,11 @@ button {
     return best;
   }
 
-  function chooseMove(board, lastMove, color, diff) {
+  function chooseMove(board, lastMove, color, diff, style) {
     var moves = enumerateMoves(board, lastMove, color);
     if (moves.length === 0) return null;
     if (diff === "easy") {
-      return moves[Math.floor(Math.random() * moves.length)];
+      return style ? styleWeightedPick(moves, board, color) : moves[Math.floor(Math.random() * moves.length)];
     }
     var scored = [];
     for (var i = 0; i < moves.length; i++) {
@@ -2060,7 +2060,7 @@ button {
       for (var j = 0; j < scored.length; j++) {
         if (scored[j].score === bestScore) ties.push(scored[j].move);
       }
-      return ties[Math.floor(Math.random() * ties.length)];
+      return style ? styleWeightedPick(ties, board, color) : ties[Math.floor(Math.random() * ties.length)];
     }
     var bestVal = -INF - 1;
     var alpha = -INF - 1;
@@ -2077,6 +2077,7 @@ button {
         continue;
       } else {
         var searchDepth = scored.length > 20 ? 2 : 3;
+        if (diff === "hardplus") searchDepth = scored.length > 20 ? 3 : 4;
         val = -negamax(sim.board, sim.lastMove, opp, searchDepth, -INF - 1, -alpha);
       }
       if (val > bestVal) {
@@ -2087,7 +2088,7 @@ button {
       }
       if (val > alpha && val < INF) alpha = val;
     }
-    return hardCandidates[Math.floor(Math.random() * hardCandidates.length)];
+    return style ? styleWeightedPick(hardCandidates, board, color) : hardCandidates[Math.floor(Math.random() * hardCandidates.length)];
   }
 
   function countDir(board, r, c, color, dr, dc) {
@@ -2370,6 +2371,7 @@ button {
       return;
     }
     if (mode === "online" && onlinePhase === "playing") resetOnlineTimer();
+    if (onlineFallbackAi) scheduleFallbackAiMove();
     render();
     maybeScheduleAi();
   }
@@ -2388,6 +2390,13 @@ button {
     var moveType = state.selectedType;
     applyMove(r, c, moveType);
     sendOnlineMove(moveType, r, c);
+    var thinkMs = aiTurnStartTs ? Math.max(0, Date.now() - aiTurnStartTs) : 800;
+    if (mode === "online") {
+      recordHumanMove(moveType, r, c, classifyAiMove(state.board, r, c, onlineMyColor), thinkMs);
+    } else if (mode === "pve") {
+      recordHumanMove(moveType, r, c, classifyAiMove(state.board, r, c, playerColor), thinkMs);
+    }
+    aiTurnStartTs = Date.now();
   }
 
   function selectType(type) {
@@ -2444,6 +2453,7 @@ button {
   function aiMove() {
     var mv = chooseMove(state.board, state.lastMove, state.current, difficulty);
     if (mv) applyMove(mv.r, mv.c, mv.type);
+    aiTurnStartTs = Date.now();
   }
 
   function maybeScheduleAi() {
@@ -2460,10 +2470,44 @@ button {
     }
   }
 
+  function fallbackDifficultyLabel() {
+    if (aiDifficulty >= 4) return "hardplus";
+    if (aiDifficulty === 3) return "hard";
+    if (aiDifficulty === 2) return "medium";
+    return "easy";
+  }
+
+  // 随机匹配接入人机后的 AI 走子：风格模仿 + 学到的思考时间
+  function scheduleFallbackAiMove() {
+    if (!onlineFallbackAi || mode !== "online" || onlinePhase !== "playing" || state.winner) return;
+    if (state.current === onlineMyColor) return;
+    if (aiTimer) return;
+    aiThinking = true;
+    render();
+    var delay = fallbackThinkDelay();
+    aiTimer = setTimeout(function () {
+      aiTimer = null;
+      aiThinking = false;
+      if (state.winner || onlinePhase !== "playing") { render(); return; }
+      var mv = chooseMove(state.board, state.lastMove, state.current, fallbackDifficultyLabel(), true);
+      if (mv) applyMove(mv.r, mv.c, mv.type);
+      render();
+    }, delay);
+  }
+
   function undo() {
     if (history.length < 2 || state.winner || aiThinking) return;
     if (mode === "online") {
       if (onlinePhase !== "playing" || state.current !== onlineMyColor || onlineUndoPending || requestModal.classList.contains("open")) return;
+      if (onlineFallbackAi) {
+        if (Math.random() < 0.7) {
+          performOnlineUndo();
+        } else {
+          notice = "对方拒绝了悔棋";
+          render();
+        }
+        return;
+      }
       onlineUndoPending = true;
       sendOnline({ t: "undo_req" });
       render();
@@ -2488,6 +2532,8 @@ button {
     history = [];
     state = freshState();
     endOverlay.classList.remove("open");
+    freshAiGameSample();
+    aiTurnStartTs = Date.now();
   }
 
   function newGame() {
@@ -2868,8 +2914,16 @@ button {
     peerSecure: true,
     joinTimeoutMs: 10000,
     moveTimeSec: 180,
-    matchSlots: ["slq-q0", "slq-q1", "slq-q2", "slq-q3", "slq-q4", "slq-q5", "slq-q6", "slq-q7", "slq-q8", "slq-q9"],
-    matchTimeoutMs: 20000
+    matchSlots: ["slq-q0", "slq-q1", "slq-q2", "slq-q3", "slq-q4", "slq-q5", "slq-q6", "slq-q7", "slq-q8", "slq-q9"]
+  };
+  var AI_PROFILE = {
+    // 部署 Cloudflare Worker 后，把 endpoint 改成你的真实地址（如 https://sanxing-ai.xxx.workers.dev，不要带末尾斜杠）
+    endpoint: "https://sanxing-ai.YOUR_SUBDOMAIN.workers.dev",
+    profileKey: "sanxing_ai_profile_v1",
+    globalKey: "sanxing_ai_global_v1",
+    queueKey: "sanxing_ai_reports_v1",
+    fallbackMs: 15000,
+    maxQueue: 20
   };
   var onlinePeer = null;
   var onlineConn = null;
@@ -2898,6 +2952,14 @@ button {
   var onlineMatchTried = [];
   var onlineMatchClaimRetries = 0;
   var onlineMatched = false;
+  var onlineFallbackAi = false;
+  var aiProfile = null;
+  var aiGlobal = null;
+  var aiGameSample = null;
+  var aiTurnStartTs = 0;
+  var aiReportQueue = [];
+  var aiDifficulty = 3;
+  var aiRecent = [];
 
   function createOnlineRoom() {
     if (mode !== "online") return;
@@ -2948,8 +3010,7 @@ button {
     }
     if (untried.length === 0) {
       if (onlineMatching && onlinePhase === "waiting" && !onlineConn) {
-        cancelMatchmaking();
-        showOnlineError("暂时没有匹配到对手，请重试");
+        enterMatchFallback();
       }
       return;
     }
@@ -2982,15 +3043,30 @@ button {
     });
   }
 
-  function armMatchTimer() {
+  function armMatchTimer(waiter) {
     if (onlineMatchTimer) { clearTimeout(onlineMatchTimer); onlineMatchTimer = null; }
     onlineMatchTimer = setTimeout(function () {
-      // 仅在探测阶段超时（房主等待期不自动取消）
-      if (onlineMatching && onlinePhase === "waiting" && !onlineAmHost) {
-        cancelMatchmaking();
-        showOnlineError("暂时没有匹配到对手，请重试");
+      if (onlineMatching && onlinePhase === "waiting") {
+        if (waiter ? onlineAmHost : !onlineAmHost) enterMatchFallback();
       }
-    }, ONLINE.matchTimeoutMs);
+    }, AI_PROFILE.fallbackMs);
+  }
+
+  // 匹配超时：不提示玩家，无缝接入成长型人机（伪造匹配成功）
+  function enterMatchFallback() {
+    if (!onlineMatching) return;
+    stopMatchmaking();
+    cleanupOnlinePeer();
+    onlineConn = null;
+    onlineAmHost = true;
+    onlineCode = null;
+    onlineFallbackAi = true;
+    onlinePhase = "ready";
+    onlineMeReady = false;
+    onlineOppReady = true; // AI 已准备
+    freshAiGameSample();
+    aiTurnStartTs = Date.now();
+    render();
   }
 
   function claimSlot(slotIdx, slotId) {
@@ -3004,6 +3080,7 @@ button {
     render();
     peer.on("open", function () {
       if (onlineMatchCancel) return;
+      armMatchTimer(true); // 等待阶段超时也接入人机
       render();
     });
     peer.on("connection", function (conn) {
@@ -3155,6 +3232,7 @@ button {
     resetBoard();
     render();
     resetOnlineTimer();
+    if (onlineFallbackAi) scheduleFallbackAiMove();
   }
 
   function handleOnlineMessage(data) {
@@ -3243,6 +3321,10 @@ button {
       }
       if (!ok) return;
       applyMove(data.r, data.c, data.type);
+      if (!onlineFallbackAi && data.thinkMs && data.thinkMs > 0) {
+        recordHumanMove(data.type, data.r, data.c, classifyAiMove(state.board, data.r, data.c, data.color), data.thinkMs);
+      }
+      aiTurnStartTs = Date.now();
     } else if (t === "full") {
       if (onlineMatching && onlinePhase === "waiting" && !onlineMyColor) {
         cleanupOnlinePeer();
@@ -3258,8 +3340,9 @@ button {
 
   function sendOnlineMove(type, r, c) {
     if (mode !== "online" || onlinePhase !== "playing" || !onlineConn) return;
+    var thinkMs = aiTurnStartTs ? Math.max(0, Date.now() - aiTurnStartTs) : 0;
     try {
-      onlineConn.send({ t: "move", color: onlineMyColor, type: type, r: r, c: c });
+      onlineConn.send({ t: "move", color: onlineMyColor, type: type, r: r, c: c, thinkMs: thinkMs });
     } catch (e) {}
   }
 
@@ -3319,6 +3402,14 @@ button {
     animateDice(diceInnerOpp, oppVal, function (shown) {
       diceOppValue.textContent = String(shown != null ? shown : oppVal);
     });
+    if (!iWon && onlineFallbackAi) {
+      var aiDelay = Math.max(fallbackThinkDelay(), 2500);
+      setTimeout(function () {
+        if (onlinePhase !== "dice") return;
+        var aiColor = Math.random() < 0.5 ? "black" : "white";
+        startOnlineGame(aiColor === "black" ? "white" : "black");
+      }, aiDelay);
+    }
   }
 
   var DICE_FACE_TARGET = {
@@ -3636,6 +3727,7 @@ button {
     onlineMatching = false;
     onlineMatchCancel = true;
     onlineMatched = false;
+    onlineFallbackAi = false;
     if (onlineMatchTimer) { clearTimeout(onlineMatchTimer); onlineMatchTimer = null; }
     onlineMatchTried = [];
     onlineMatchClaimRetries = 0;
@@ -3675,6 +3767,7 @@ button {
     onlineMatching = false;
     onlineMatchCancel = true;
     onlineMatched = false;
+    onlineFallbackAi = false;
     if (onlineMatchTimer) { clearTimeout(onlineMatchTimer); onlineMatchTimer = null; }
     onlineMatchTried = [];
     onlineMatchClaimRetries = 0;
@@ -3827,6 +3920,244 @@ button {
     return m ? m[1].toUpperCase() : null;
   }
 
+  // ================= 成长型人机：本地画像与全局学习 =================
+  function emptyAiProfile() {
+    return {
+      games: 0,
+      type: { square: 0, circle: 0, triangle: 0 },
+      firstTypeCount: { square: 0, circle: 0, triangle: 0 },
+      centerSum: 0, centerCount: 0,
+      threat: { attack: 0, defense: 0, neutral: 0 },
+      thinkMs: [],
+      recent: [],
+      difficulty: 3
+    };
+  }
+
+  function loadAiProfile() {
+    var d = emptyAiProfile();
+    try {
+      var raw = localStorage.getItem(AI_PROFILE.profileKey);
+      if (raw) {
+        var p = JSON.parse(raw);
+        for (var k in d) if (p[k] !== undefined) d[k] = p[k];
+      }
+    } catch (e) {}
+    aiProfile = d;
+    aiDifficulty = aiProfile.difficulty || 3;
+    aiRecent = aiProfile.recent || [];
+  }
+
+  function saveAiProfile() {
+    if (!aiProfile) return;
+    aiProfile.recent = aiRecent;
+    aiProfile.difficulty = aiDifficulty;
+    try { localStorage.setItem(AI_PROFILE.profileKey, JSON.stringify(aiProfile)); } catch (e) {}
+  }
+
+  function freshAiGameSample() {
+    aiGameSample = {
+      type: { square: 0, circle: 0, triangle: 0 },
+      firstType: null,
+      centerSum: 0, centerCount: 0,
+      threat: { attack: 0, defense: 0, neutral: 0 },
+      thinkMs: []
+    };
+  }
+
+  // 简单走法分类：attack（进攻/成三）、defense（阻断对方二连）、neutral
+  function classifyAiMove(board, r, c, color) {
+    var opp = color === "black" ? "white" : "black";
+    var sim = board.map(function (row) { return row.slice(); });
+    sim[r][c] = { color: color, type: "square" };
+    if (isWin(sim, r, c, color)) return "attack";
+    var attack = false;
+    for (var d = 0; d < DIRS.length; d++) {
+      var dr = DIRS[d][0], dc = DIRS[d][1];
+      var cnt = 1;
+      var rr = r + dr, cc = c + dc;
+      while (inBounds(rr, cc) && sim[rr][cc] && sim[rr][cc].color === color) { cnt++; rr += dr; cc += dc; }
+      rr = r - dr; cc = c - dc;
+      while (inBounds(rr, cc) && sim[rr][cc] && sim[rr][cc].color === color) { cnt++; rr -= dr; cc -= dc; }
+      if (cnt >= 2) attack = true;
+    }
+    var defense = false;
+    for (var d2 = 0; d2 < DIRS.length && !defense; d2++) {
+      var dr2 = DIRS[d2][0], dc2 = DIRS[d2][1];
+      var cnt2 = 0;
+      var rr2 = r + dr2, cc2 = c + dc2;
+      while (inBounds(rr2, cc2) && board[rr2][cc2] && board[rr2][cc2].color === opp) { cnt2++; rr2 += dr2; cc2 += dc2; }
+      rr2 = r - dr2; cc2 = c - dc2;
+      while (inBounds(rr2, cc2) && board[rr2][cc2] && board[rr2][cc2].color === opp) { cnt2++; rr2 -= dr2; cc2 -= dc2; }
+      if (cnt2 >= 2) defense = true;
+    }
+    if (attack) return "attack";
+    if (defense) return "defense";
+    return "neutral";
+  }
+
+  // 记录一记"人类"走子（本机玩家与联机真人对手都算；人机自身走法不记录）
+  function recordHumanMove(type, r, c, cls, thinkMs) {
+    if (!aiProfile) loadAiProfile();
+    if (!aiGameSample) freshAiGameSample();
+    var cdist = Math.abs(r - 6) + Math.abs(c - 6);
+    aiProfile.type[type] = (aiProfile.type[type] || 0) + 1;
+    aiProfile.centerSum += cdist;
+    aiProfile.centerCount += 1;
+    aiProfile.threat[cls] = (aiProfile.threat[cls] || 0) + 1;
+    if (thinkMs > 0) {
+      aiProfile.thinkMs.push(Math.round(thinkMs));
+      if (aiProfile.thinkMs.length > 200) aiProfile.thinkMs.shift();
+    }
+    if (aiGameSample.type[type] === 0 && !aiGameSample.firstType) {
+      aiGameSample.firstType = type;
+      aiProfile.firstTypeCount[type] = (aiProfile.firstTypeCount[type] || 0) + 1;
+    }
+    aiGameSample.type[type] += 1;
+    aiGameSample.centerSum += cdist;
+    aiGameSample.centerCount += 1;
+    aiGameSample.threat[cls] += 1;
+    if (thinkMs > 0) {
+      aiGameSample.thinkMs.push(Math.round(thinkMs));
+      if (aiGameSample.thinkMs.length > 12) aiGameSample.thinkMs.shift();
+    }
+    saveAiProfile();
+  }
+
+  function loadAiGlobal() {
+    try {
+      var raw = localStorage.getItem(AI_PROFILE.globalKey);
+      aiGlobal = raw ? JSON.parse(raw) : null;
+    } catch (e) { aiGlobal = null; }
+  }
+
+  function refreshAiGlobal() {
+    if (!AI_PROFILE.endpoint || AI_PROFILE.endpoint.indexOf("YOUR_SUBDOMAIN") >= 0) return;
+    fetch(AI_PROFILE.endpoint + "/profile", { method: "GET" }).then(function (res) {
+      return res.json();
+    }).then(function (data) {
+      if (data && typeof data.games === "number") {
+        aiGlobal = data;
+        try { localStorage.setItem(AI_PROFILE.globalKey, JSON.stringify(aiGlobal)); } catch (e) {}
+      }
+    }).catch(function () {});
+  }
+
+  function loadAiQueue() {
+    try {
+      var raw = localStorage.getItem(AI_PROFILE.queueKey);
+      aiReportQueue = raw ? JSON.parse(raw) : [];
+    } catch (e) { aiReportQueue = []; }
+  }
+
+  function saveAiQueue() {
+    try { localStorage.setItem(AI_PROFILE.queueKey, JSON.stringify(aiReportQueue)); } catch (e) {}
+  }
+
+  function uploadAiReport(report) {
+    if (!report) return;
+    aiReportQueue.push(report);
+    if (aiReportQueue.length > AI_PROFILE.maxQueue) aiReportQueue.shift();
+    saveAiQueue();
+    flushAiReports();
+  }
+
+  function flushAiReports() {
+    if (aiReportQueue.length === 0) return;
+    if (!AI_PROFILE.endpoint || AI_PROFILE.endpoint.indexOf("YOUR_SUBDOMAIN") >= 0) {
+      aiReportQueue = [];
+      saveAiQueue();
+      return;
+    }
+    var item = aiReportQueue[0];
+    fetch(AI_PROFILE.endpoint + "/report", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(item)
+    }).then(function (res) {
+      return res.json();
+    }).then(function () {
+      aiReportQueue.shift();
+      saveAiQueue();
+      flushAiReports();
+    }).catch(function () {});
+  }
+
+  function buildAiReport(win, vsAi) {
+    if (!aiGameSample || aiGameSample.centerCount === 0) return null;
+    return {
+      v: 1,
+      ts: Date.now(),
+      type: aiGameSample.type,
+      firstType: aiGameSample.firstType,
+      centerSum: Math.round(aiGameSample.centerSum),
+      centerCount: aiGameSample.centerCount,
+      threat: aiGameSample.threat,
+      thinkMs: aiGameSample.thinkMs.slice(),
+      win: win,
+      vsAi: !!vsAi,
+      aiDifficulty: aiDifficulty
+    };
+  }
+
+  function adaptAiDifficulty(win) {
+    aiRecent.push(win);
+    if (aiRecent.length > 20) aiRecent.shift();
+    if (aiRecent.length >= 6) {
+      var wins = 0;
+      for (var i = 0; i < aiRecent.length; i++) if (aiRecent[i] > 0) wins++;
+      var rate = wins / aiRecent.length;
+      if (rate > 0.6 && aiDifficulty < 4) aiDifficulty++;
+      else if (rate < 0.4 && aiDifficulty > 1) aiDifficulty--;
+    }
+    saveAiProfile();
+  }
+
+  function fallbackThinkDelay() {
+    var samples = (aiGlobal && aiGlobal.thinkMs && aiGlobal.thinkMs.length) ? aiGlobal.thinkMs : (aiProfile ? aiProfile.thinkMs : []);
+    var delay = 1200;
+    if (samples && samples.length > 0) {
+      delay = samples[Math.floor(Math.random() * samples.length)];
+    }
+    delay = Math.max(800, Math.min(15000, delay));
+    var cands = 0;
+    if (state && state.board) cands = enumerateMoves(state.board, state.lastMove, state.current).length;
+    delay *= (0.8 + Math.min(0.6, cands / 24));
+    return Math.round(delay);
+  }
+
+  function styleWeightedPick(candidates, board, color) {
+    var g = aiGlobal || aiProfile;
+    if (!g) return candidates[Math.floor(Math.random() * candidates.length)];
+    var totalType = (g.type.square || 0) + (g.type.circle || 0) + (g.type.triangle || 0) || 1;
+    var typePref = {
+      square: (g.type.square || 0) / totalType,
+      circle: (g.type.circle || 0) / totalType,
+      triangle: (g.type.triangle || 0) / totalType
+    };
+    var centerMean = g.centerCount ? g.centerSum / g.centerCount : 3.5;
+    var prefCenter = centerMean < 4;
+    var threatTotal = (g.threat.attack || 0) + (g.threat.defense || 0) + (g.threat.neutral || 0) || 1;
+    var prefAggro = (g.threat.attack || 0) / threatTotal;
+    var weights = candidates.map(function (m) {
+      var w = 1 + typePref[m.type] * 1.2;
+      var dist = Math.abs(m.r - 6) + Math.abs(m.c - 6);
+      w += (prefCenter ? (12 - dist) : dist) * 0.05;
+      var cls = classifyAiMove(board, m.r, m.c, color);
+      if (cls === "attack") w += prefAggro * 1.0;
+      else if (cls === "defense") w += (1 - prefAggro) * 0.6;
+      return w;
+    });
+    var total = 0;
+    for (var i = 0; i < weights.length; i++) total += weights[i];
+    var r = Math.random() * total;
+    for (var j = 0; j < candidates.length; j++) {
+      r -= weights[j];
+      if (r <= 0) return candidates[j];
+    }
+    return candidates[candidates.length - 1];
+  }
+
   function showEnd() {
     document.getElementById("btnAgain").textContent = "再来一局";
     if (state.winner === "draw") {
@@ -3879,6 +4210,13 @@ button {
       saveStats();
       renderStats();
     }
+    if (mode === "pve" || (mode === "online" && onlineMyColor)) {
+      var aiWin = state.winner === "draw" ? 0 : (state.winner === (mode === "pve" ? playerColor : onlineMyColor) ? 1 : -1);
+      var aiVsAi = mode === "pve" || onlineFallbackAi;
+      var aiRep = buildAiReport(aiWin, aiVsAi);
+      if (aiRep) uploadAiReport(aiRep);
+      if (mode === "online" && onlineFallbackAi) adaptAiDifficulty(aiWin);
+    }
     endOverlay.classList.add("open");
   }
 
@@ -3910,6 +4248,7 @@ button {
   document.getElementById("btnAgain").addEventListener("click", function () {
     if (mode === "online") {
       if (onlinePhase === "playing" && state.winner) {
+        if (onlineFallbackAi) { performOnlineRematch(); return; }
         if (!onlineRematchPending) {
           onlineRematchPending = true;
           sendOnline({ t: "rematch_req" });
@@ -3953,6 +4292,10 @@ button {
   newGame();
   loadStats();
   loadAchievements();
+  loadAiProfile();
+  loadAiGlobal();
+  loadAiQueue();
+  refreshAiGlobal();
   renderStats();
   btnResetStats.addEventListener("click", resetStats);
   tabPve.addEventListener("click", function () { statsTab = "pve"; renderStats(); });
@@ -4008,6 +4351,7 @@ button {
   });
   btnRematch.addEventListener("click", function () {
     if (mode !== "online" || onlinePhase !== "playing" || !state.winner || onlineRematchPending) return;
+    if (onlineFallbackAi) { performOnlineRematch(); return; }
     onlineRematchPending = true;
     sendOnline({ t: "rematch_req" });
     render();
@@ -4099,6 +4443,21 @@ button {
     achCounters: function () { return achData.counters; },
     achUnlocked: function () { return achData.unlocked; },
     achList: function () { return ACHIEVEMENTS; },
+    aiProfileFn: function () { return aiProfile; },
+    aiGlobalFn: function () { return aiGlobal; },
+    aiSample: function () { return aiGameSample; },
+    aiQueue: function () { return aiReportQueue; },
+    aiDifficultyFn: function () { return aiDifficulty; },
+    adaptAiDifficultyFn: adaptAiDifficulty,
+    fallbackLabel: fallbackDifficultyLabel,
+    setAiEndpoint: function (u) { AI_PROFILE.endpoint = u; },
+    forceWin: function (winner) {
+      state.winner = winner || state.current;
+      state.winReason = "three";
+      state.phase = "over";
+      render();
+      showEnd();
+    },
     applyMoveFn: function (r, c, type) { applyMove(r, c, type); },
     enumerateMovesFn: function (b, l, color) { return enumerateMoves(b, l, color); },
     chooseMoveFn: function (b, l, color, diff) { return chooseMove(b, l, color, diff); },
