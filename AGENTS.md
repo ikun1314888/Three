@@ -11,4 +11,4 @@
 
 - 单文件游戏：`D:\codex\index.html`（HTML+CSS+内联 PeerJS+Cloudflare Worker 学习上报），改动仅限该文件。
 - 测试脚本放 `D:\codex\.tmp-work\`，不提交。
-- 联机：PeerJS 公共信令；学习数据 Worker：`https://sanxing-ai.2332734249.workers.dev`。
+- 联机：PeerJS 公共信令；学习数据后端（CloudBase 云函数 + 云数据库，原 workers.dev 因国内不可达已弃用）：`https://three-d6ggbjqi55fd47560-1469881280.ap-shanghai.app.tcloudbase.com/sanxing-ai`（云函数 `sanxing-ai`，集合 `ai_global`，权限 ADMINONLY）。
